@@ -1,5 +1,3 @@
-# Heidi
-
 **Turn any YouTube lecture into a complete study environment — or a private faculty audit — in under 60 seconds.**
 
 Built for [The Frontier Internship](https://www.cloudforcehq.com/) — Cloudforce Hackathon, May 2025.
