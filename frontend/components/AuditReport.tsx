@@ -34,7 +34,7 @@ const CATEGORY_LABELS: Record<AuditCategory, string> = {
 };
 
 function RatingBadge({ rating }: { rating: AuditRating }) {
-  const s = RATING_STYLES[rating];
+  const s = RATING_STYLES[rating] ?? RATING_STYLES["good"];
   return (
     <span className={clsx("text-[11px] font-medium px-2 py-0.5 rounded-full", s.bg, s.text)}>
       {s.label}
@@ -43,10 +43,10 @@ function RatingBadge({ rating }: { rating: AuditRating }) {
 }
 
 function CategoryBadge({ category }: { category: AuditCategory }) {
-  const s = CATEGORY_STYLES[category];
+  const s = CATEGORY_STYLES[category] ?? CATEGORY_STYLES["clarity"];
   return (
     <span className={clsx("text-[10px] font-medium px-1.5 py-0.5 rounded-md capitalize", s.bg, s.text)}>
-      {CATEGORY_LABELS[category]}
+      {CATEGORY_LABELS[category] ?? category}
     </span>
   );
 }

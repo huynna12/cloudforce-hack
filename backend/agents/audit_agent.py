@@ -218,6 +218,36 @@ class AuditAgent:
         )
         report = parse_llm_json(response.content[0].text)
 
+        # Normalize ratings — Claude sometimes returns unexpected values
+        VALID_RATINGS = {"strong", "good", "needs_work"}
+        VALID_CATEGORIES = {"pedagogical", "accessibility", "equity", "clarity"}
+
+        def normalize_rating(r: str) -> str:
+            r = str(r).lower().replace(" ", "_").replace("-", "_")
+            if r in VALID_RATINGS:
+                return r
+            if r in {"excellent", "very_good", "great"}:
+                return "strong"
+            if r in {"fair", "moderate", "average", "okay", "ok"}:
+                return "good"
+            return "needs_work"
+
+        def normalize_category(c: str) -> str:
+            c = str(c).lower()
+            return c if c in VALID_CATEGORIES else "clarity"
+
+        overall = report.get("overall", {})
+        for key in list(overall.keys()):
+            overall[key] = normalize_rating(overall[key])
+
+        tp = report.get("top_priority", {})
+        if "category" in tp:
+            tp["category"] = normalize_category(tp["category"])
+
+        for issue in report.get("issues", []):
+            if "category" in issue:
+                issue["category"] = normalize_category(issue["category"])
+
         # Post-process: verify and correct timestamps for all quoted text
         segments = _parse_transcript_segments(transcript_text)
         report = _verify_timestamps(report, segments)
