@@ -97,31 +97,34 @@
   }
 
   @keyframes introSplit {
+    /* slow fade-in so user can read it */
     0% {
       opacity: 0;
-      letter-spacing: 0em;
-      transform: scale(0.96);
+      letter-spacing: -0.02em;
+      transform: scale(0.94);
     }
-    18% {
+    45% {
       opacity: 1;
       letter-spacing: 0.02em;
       transform: scale(1);
     }
-    60% {
+    /* hold */
+    78% {
       opacity: 1;
       letter-spacing: 0.02em;
       transform: scale(1);
     }
+    /* fast exit */
     100% {
       opacity: 0;
-      letter-spacing: 0.65em;
+      letter-spacing: 0.7em;
       transform: scale(1.04);
     }
   }
   @keyframes introSubFade {
-    0%   { opacity: 0; transform: translateY(6px); }
-    25%  { opacity: 1; transform: translateY(0); }
-    65%  { opacity: 1; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(-4px); }
+    0%   { opacity: 0; transform: translateY(8px); }
+    50%  { opacity: 1; transform: translateY(0); }
+    78%  { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-5px); }
   }
 }

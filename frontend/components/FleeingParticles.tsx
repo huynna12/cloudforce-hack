@@ -585,7 +585,7 @@ export default function FleeingParticles({ onIntroDone }: { onIntroDone?: () => 
           <p
             className="relative select-none text-5xl sm:text-7xl font-bold tracking-tight"
             style={{
-              animation: "introSplit 1s cubic-bezier(0.4,0,0.6,1) forwards",
+              animation: "introSplit 2s cubic-bezier(0.4,0,0.6,1) forwards",
               background: "linear-gradient(135deg, #1a73e8 0%, #8b5cf6 50%, #ec4899 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
@@ -598,7 +598,7 @@ export default function FleeingParticles({ onIntroDone }: { onIntroDone?: () => 
 
           <p
             className="relative select-none text-sm text-[#6B7280] font-medium tracking-wide"
-            style={{ animation: "introSubFade 1s cubic-bezier(0.4,0,0.6,1) forwards" }}
+            style={{ animation: "introSubFade 2s cubic-bezier(0.4,0,0.6,1) forwards" }}
           >
             Your lecture is being analyzed
           </p>
