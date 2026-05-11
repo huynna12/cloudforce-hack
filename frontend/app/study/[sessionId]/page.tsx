@@ -172,16 +172,18 @@ export default function StudyPage() {
   // ── Loading state ───────────────────────────────────────────────────────────
   if (!isComplete) {
     return (
-      <div className="min-h-screen bg-[#FAFAFA] px-4 relative">
+      <div className="min-h-screen bg-[#FAFAFA] relative">
         <FleeingParticles />
-        <div className="max-w-lg mx-auto relative" style={{ zIndex: 1 }}>
-          <div className="py-4">
-            <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-[#6B7280] hover:text-[#111827] transition-colors">
-              <ArrowLeft className="w-4 h-4" /> Back
-            </Link>
-          </div>
-          <ProcessingView progress={progress} metadata={metadata} error={error} />
-        </div>
+        {/* Back link — top-left, doesn't block game */}
+        <Link
+          href="/"
+          className="fixed top-4 left-4 z-20 inline-flex items-center gap-1.5 text-sm
+                     text-[#6B7280] hover:text-[#111827] transition-colors
+                     bg-white/80 backdrop-blur px-3 py-1.5 rounded-lg border border-[#E5E7EB] shadow-sm"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back
+        </Link>
+        <ProcessingView progress={progress} metadata={metadata} error={error} />
       </div>
     );
   }

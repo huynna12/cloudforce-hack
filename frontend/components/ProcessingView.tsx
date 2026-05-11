@@ -1,8 +1,7 @@
 "use client";
 
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Loader2 } from "lucide-react";
 import { AgentProgress, AgentStatus, VideoMetadata } from "@/lib/types";
-import clsx from "clsx";
 
 interface Props {
   progress: AgentProgress;
@@ -10,103 +9,73 @@ interface Props {
   error: string | null;
 }
 
-const STEPS: { key: keyof AgentProgress; label: string; detail: string }[] = [
-  { key: "transcript", label: "Reading transcript",       detail: "Pulling captions and video metadata" },
-  { key: "outline",    label: "Mapping the lecture",      detail: "Building a timestamped structure" },
-  { key: "synthesis",  label: "Creating study materials", detail: "Summaries, flashcards, and key terms" },
-];
-
-// ── Error view ────────────────────────────────────────────────────────────────
+// ── Error view — still centered (game doesn't matter when there's an error) ──
 function ErrorView({ error }: { error: string }) {
   const hint =
-    error.toLowerCase().includes("private")   ? "Make sure the video is set to Public on YouTube." :
+    error.toLowerCase().includes("private")
+      ? "Make sure the video is set to Public on YouTube." :
     error.toLowerCase().includes("caption") || error.toLowerCase().includes("transcript")
-                                               ? "Try a lecture that has captions — most university lectures do." :
+      ? "Try a lecture that has captions — most university lectures do." :
     error.toLowerCase().includes("live") || error.toLowerCase().includes("stream")
-                                               ? "Livestreams aren't supported. Try a recorded lecture." :
+      ? "Livestreams aren't supported. Try a recorded lecture." :
     error.toLowerCase().includes("short") || error.toLowerCase().includes("2 minute")
-                                               ? "Heidi works best with full lectures, not short clips." :
-    error.toLowerCase().includes("url")        ? "Paste a standard YouTube link — youtube.com/watch?v=..." :
-    "Check that the video is public and has captions enabled.";
+      ? "Heidi works best with full lectures, not short clips." :
+    error.toLowerCase().includes("url")
+      ? "Paste a standard YouTube link — youtube.com/watch?v=..." :
+      "Check that the video is public and has captions enabled.";
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] gap-5 animate-fade-in-up px-4">
-      <div className="w-14 h-14 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-2xl">
-        ⚠️
-      </div>
-      <div className="text-center max-w-sm space-y-2">
-        <p className="font-semibold text-[#111827]">Couldn't process this video</p>
-        <p className="text-sm text-[#6B7280] leading-relaxed">{error}</p>
-        <div className="flex items-start gap-2 text-left bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 mt-3">
-          <span className="text-base">💡</span>
-          <p className="text-xs text-amber-800 leading-relaxed">{hint}</p>
+    <div className="fixed inset-0 flex items-center justify-center px-4 z-10">
+      <div className="flex flex-col items-center gap-5 animate-fade-in-up max-w-sm w-full">
+        <div className="w-14 h-14 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-2xl">
+          ⚠️
         </div>
+        <div className="text-center space-y-2">
+          <p className="font-semibold text-[#111827]">Couldn't process this video</p>
+          <p className="text-sm text-[#6B7280] leading-relaxed">{error}</p>
+          <div className="flex items-start gap-2 text-left bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 mt-3">
+            <span className="text-base">💡</span>
+            <p className="text-xs text-amber-800 leading-relaxed">{hint}</p>
+          </div>
+        </div>
+        <a href="/" className="text-sm font-medium text-[#1a73e8] hover:underline">
+          Try a different video →
+        </a>
       </div>
-      <a href="/" className="text-sm font-medium text-[#1a73e8] hover:underline">
-        Try a different video →
-      </a>
     </div>
   );
 }
 
-// ── Progress step ─────────────────────────────────────────────────────────────
-function Step({
-  label, detail, status, isLast,
-}: {
-  label: string; detail: string; status: AgentStatus; isLast: boolean;
-}) {
-  const isDone   = status === "complete";
-  const isActive = status === "running";
-  const isPending = status === "idle";
+// ── Compact step row ──────────────────────────────────────────────────────────
+function StepRow({ label, status }: { label: string; status: AgentStatus }) {
+  const isDone    = status === "complete";
+  const isRunning = status === "running";
 
   return (
-    <div className="flex gap-4">
-      {/* Left: icon + connecting line */}
-      <div className="flex flex-col items-center">
-        <div className={clsx(
-          "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-500",
-          isDone   && "bg-[#1a73e8]",
-          isActive && "bg-white border-2 border-[#1a73e8]",
-          isPending && "bg-white border-2 border-[#E5E7EB]",
-        )}>
-          {isDone && <CheckCircle className="w-4 h-4 text-white" />}
-          {isActive && (
-            <span className="w-2.5 h-2.5 rounded-full bg-[#1a73e8] animate-pulse" />
-          )}
-          {isPending && (
-            <span className="w-2 h-2 rounded-full bg-[#D1D5DB]" />
-          )}
-        </div>
-        {!isLast && (
-          <div className={clsx(
-            "w-0.5 flex-1 mt-1 min-h-[2rem] transition-all duration-700",
-            isDone ? "bg-[#1a73e8]" : "bg-[#E5E7EB]"
-          )} />
-        )}
-      </div>
-
-      {/* Right: text */}
-      <div className={clsx(
-        "pb-6 transition-all duration-500",
-        isPending && "opacity-30",
-      )}>
-        <p className={clsx(
-          "text-sm font-semibold leading-tight",
-          isDone   && "text-[#6B7280]",
-          isActive && "text-[#1a73e8]",
-          isPending && "text-[#111827]",
-        )}>
-          {label}
-        </p>
-        {isActive && (
-          <p className="text-xs text-[#6B7280] mt-1 animate-fade-in-up">
-            {detail}
-          </p>
-        )}
-        {isDone && (
-          <p className="text-xs text-[#9CA3AF] mt-0.5">Done</p>
-        )}
-      </div>
+    <div className="flex items-center gap-2.5">
+      {isDone && <CheckCircle className="w-3.5 h-3.5 text-[#1a73e8] flex-shrink-0" />}
+      {isRunning && <Loader2 className="w-3.5 h-3.5 text-[#1a73e8] animate-spin flex-shrink-0" />}
+      {!isDone && !isRunning && (
+        <span className="w-3.5 h-3.5 rounded-full border border-[#D1D5DB] flex-shrink-0" />
+      )}
+      <span className={
+        isDone    ? "text-xs text-[#9CA3AF] line-through" :
+        isRunning ? "text-xs font-medium text-[#1a73e8]" :
+                    "text-xs text-[#9CA3AF]"
+      }>
+        {label}
+      </span>
+      {isRunning && (
+        <span className="flex gap-0.5 ml-1">
+          {[0, 1, 2].map(i => (
+            <span
+              key={i}
+              className="w-1 h-1 rounded-full bg-[#1a73e8] animate-bounce"
+              style={{ animationDelay: `${i * 150}ms` }}
+            />
+          ))}
+        </span>
+      )}
     </div>
   );
 }
@@ -115,93 +84,57 @@ function Step({
 export default function ProcessingView({ progress, metadata, error }: Props) {
   if (error) return <ErrorView error={error} />;
 
-  const allDone = Object.values(progress).every(s => s === "complete");
+  // Collapse 3 backend steps into 2 visible steps.
+  // "Creating study materials" is active as soon as outline or synthesis starts.
+  const step2Status: AgentStatus =
+    progress.synthesis === "complete" ? "complete" :
+    progress.outline   === "running"  ||
+    progress.synthesis === "running"  ? "running" : "idle";
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] px-4">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-sm px-4 animate-fade-in-up">
+      <div className="bg-white/90 backdrop-blur-md border border-[#E5E7EB] rounded-2xl shadow-xl p-4">
 
-      {/* ── Hero area ── */}
-      <div className="flex flex-col items-center gap-6 mb-10 w-full max-w-sm animate-fade-in-up">
-
-        {/* Thumbnail OR pulsing logo */}
-        {metadata?.thumbnail_url ? (
-          <div className="relative w-full animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-            {/* Thumbnail */}
-            <div className="relative rounded-2xl overflow-hidden shadow-lg aspect-video w-full">
-              <img
-                src={metadata.thumbnail_url}
-                alt={metadata.title}
-                className="w-full h-full object-cover"
-              />
-              {/* Subtle dark overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              {/* Title on thumbnail */}
-              <div className="absolute bottom-0 left-0 right-0 p-3">
-                <p className="text-white text-sm font-semibold leading-snug line-clamp-2">
-                  {metadata.title}
-                </p>
-                <p className="text-white/70 text-xs mt-0.5">{metadata.author}</p>
-              </div>
+        {/* Top row: thumbnail + title */}
+        <div className="flex items-center gap-3 mb-3">
+          {metadata?.thumbnail_url ? (
+            <img
+              src={metadata.thumbnail_url}
+              alt={metadata.title}
+              className="w-14 h-10 rounded-lg object-cover flex-shrink-0"
+            />
+          ) : (
+            <div className="relative w-14 h-10 rounded-lg bg-[#e8f0fe] flex-shrink-0 flex items-center justify-center overflow-hidden">
+              <div className="absolute inset-0 bg-[#1a73e8]/10 animate-ping-slow rounded-lg" />
+              <img src="/logo.png" alt="Heidi" className="w-7 h-7 object-contain relative" style={{ mixBlendMode: "multiply" }} />
             </div>
-
-            {/* "Analyzing" badge */}
-            {!allDone && (
-              <div className="absolute -top-2.5 -right-2.5 flex items-center gap-1.5
-                              bg-white border border-[#E5E7EB] rounded-full px-2.5 py-1 shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1a73e8] animate-pulse" />
-                <span className="text-[11px] font-medium text-[#1a73e8]">Analyzing</span>
-              </div>
+          )}
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-[#111827] truncate">
+              {metadata?.title ?? "Connecting to YouTube…"}
+            </p>
+            {metadata?.author && (
+              <p className="text-[10px] text-[#9CA3AF] truncate">{metadata.author}</p>
             )}
           </div>
-        ) : (
-          /* Pulsing logo while waiting for metadata */
-          <div className="relative flex items-center justify-center w-24 h-24">
-            {/* Pulse rings */}
-            <div className="absolute inset-0 rounded-full bg-[#1a73e8]/10 animate-ping-slow" />
-            <div className="absolute inset-0 rounded-full bg-[#1a73e8]/6 animate-ping-slower" />
-            {/* Logo */}
-            <div className="relative w-20 h-20 rounded-full bg-white shadow-md flex items-center justify-center">
-              <img
-                src="/logo.png"
-                alt="Heidi"
-                className="w-14 h-14 object-contain"
-                style={{ mixBlendMode: "multiply" }}
-              />
-            </div>
+          {/* Pulse badge */}
+          <div className="ml-auto flex-shrink-0 flex items-center gap-1 bg-[#e8f0fe] px-2 py-1 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#1a73e8] animate-pulse" />
+            <span className="text-[10px] font-medium text-[#1a73e8]">Analyzing</span>
           </div>
-        )}
+        </div>
 
-        {/* Status text when no thumbnail yet */}
-        {!metadata && (
-          <p className="text-sm text-[#6B7280] animate-pulse">
-            Connecting to YouTube…
-          </p>
-        )}
+        {/* Divider */}
+        <div className="border-t border-[#F3F4F6] mb-3" />
+
+        {/* 2 steps */}
+        <div className="flex flex-col gap-2">
+          <StepRow label="Reading transcript"       status={progress.transcript} />
+          <StepRow label="Creating study materials" status={step2Status} />
+        </div>
+
+        <p className="text-[10px] text-[#9CA3AF] mt-3">Usually ready in 30–60 seconds</p>
       </div>
-
-      {/* ── Steps timeline ── */}
-      <div
-        className="w-full max-w-xs animate-fade-in-up"
-        style={{ animationDelay: "0.2s" }}
-      >
-        {STEPS.map((step, i) => (
-          <Step
-            key={step.key}
-            label={step.label}
-            detail={step.detail}
-            status={progress[step.key]}
-            isLast={i === STEPS.length - 1}
-          />
-        ))}
-      </div>
-
-      {/* ── Footer hint ── */}
-      <p
-        className="text-xs text-[#9CA3AF] mt-2 animate-fade-in-up"
-        style={{ animationDelay: "0.4s" }}
-      >
-        Usually ready in 30–60 seconds
-      </p>
     </div>
   );
 }

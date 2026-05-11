@@ -92,66 +92,92 @@ export default function FacultyReportPage() {
     return (
       <div className="min-h-screen bg-[#FAFAFA] relative">
         <FleeingParticles />
-        <div className="max-w-lg mx-auto px-4 relative" style={{ zIndex: 1 }}>
-          <div className="py-4">
-            <Link href="/faculty" className="inline-flex items-center gap-1.5 text-sm text-[#6B7280] hover:text-[#111827]">
-              <ArrowLeft className="w-4 h-4" /> Back
-            </Link>
-          </div>
 
-          {error ? (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 animate-fade-in">
+        {/* Back link — top-left, doesn't block game */}
+        <Link
+          href="/faculty"
+          className="fixed top-4 left-4 z-20 inline-flex items-center gap-1.5 text-sm
+                     text-[#6B7280] hover:text-[#111827] transition-colors
+                     bg-white/80 backdrop-blur px-3 py-1.5 rounded-lg border border-[#E5E7EB] shadow-sm"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back
+        </Link>
+
+        {/* Error */}
+        {error && (
+          <div className="fixed inset-0 flex items-center justify-center px-4 z-10">
+            <div className="flex flex-col items-center gap-4 text-center max-w-sm animate-fade-in">
+              <div className="w-12 h-12 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-xl">⚠️</div>
               <p className="font-medium text-[#111827]">Something went wrong</p>
               <p className="text-sm text-[#6B7280]">{error}</p>
               <Link href="/faculty" className="text-sm text-[#1a73e8] hover:underline">Try a different video</Link>
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8 animate-fade-in">
-              <div className="text-center max-w-md">
-                <div className="w-16 h-16 mx-auto mb-4">
-                  <img src="/logo.png" alt="Heidi logo" className="w-full h-full object-contain" style={{ mixBlendMode: "multiply" }} />
-                </div>
-                {metadata ? (
-                  <>
-                    <p className="text-xs text-[#9CA3AF] uppercase tracking-wider mb-1">Auditing</p>
-                    <p className="font-semibold text-[#111827] text-balance">{metadata.title}</p>
-                    <p className="text-sm text-[#6B7280] mt-0.5">{metadata.author}</p>
-                  </>
+          </div>
+        )}
+
+        {/* Compact bottom card */}
+        {!error && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-sm px-4 animate-fade-in-up">
+            <div className="bg-white/90 backdrop-blur-md border border-[#E5E7EB] rounded-2xl shadow-xl p-4">
+              {/* Thumbnail + title */}
+              <div className="flex items-center gap-3 mb-3">
+                {metadata?.thumbnail_url ? (
+                  <img src={metadata.thumbnail_url} alt={metadata.title}
+                    className="w-14 h-10 rounded-lg object-cover flex-shrink-0" />
                 ) : (
-                  <p className="text-sm text-[#6B7280]">Starting analysis…</p>
+                  <div className="relative w-14 h-10 rounded-lg bg-[#fce7f3] flex-shrink-0 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-[#ec4899]/10 animate-ping-slow rounded-lg" />
+                    <img src="/logo.png" alt="Heidi" className="w-7 h-7 object-contain relative" style={{ mixBlendMode: "multiply" }} />
+                  </div>
                 )}
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-[#111827] truncate">
+                    {metadata?.title ?? "Connecting to YouTube…"}
+                  </p>
+                  {metadata?.author && <p className="text-[10px] text-[#9CA3AF] truncate">{metadata.author}</p>}
+                </div>
+                <div className="ml-auto flex-shrink-0 flex items-center gap-1 bg-[#fce7f3] px-2 py-1 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#ec4899] animate-pulse" />
+                  <span className="text-[10px] font-medium text-[#ec4899]">Auditing</span>
+                </div>
               </div>
 
-              <div className="w-full max-w-sm space-y-3">
-                {STEPS.map((step) => {
-                  const status = progress[step.key];
-                  const isActive = status === "running";
-                  const isDone = status === "complete";
+              <div className="border-t border-[#F3F4F6] mb-3" />
+
+              {/* 2 steps */}
+              <div className="flex flex-col gap-2">
+                {[
+                  { label: "Reading transcript", status: progress.transcript },
+                  { label: "Auditing lecture",   status: progress.audit },
+                ].map(({ label, status }) => {
+                  const isDone    = status === "complete";
+                  const isRunning = status === "running";
                   return (
-                    <div
-                      key={step.key}
-                      className={clsx(
-                        "flex items-start gap-3 rounded-lg p-3 transition-all duration-300",
-                        isActive && "bg-[#e8f0fe] border border-[#aecbfa]",
-                        isDone && "opacity-60",
-                        !isActive && !isDone && "opacity-30"
+                    <div key={label} className="flex items-center gap-2.5">
+                      {isDone    && <CheckCircle className="w-3.5 h-3.5 text-[#ec4899] flex-shrink-0" />}
+                      {isRunning && <Loader2    className="w-3.5 h-3.5 text-[#ec4899] animate-spin flex-shrink-0" />}
+                      {!isDone && !isRunning && <span className="w-3.5 h-3.5 rounded-full border border-[#D1D5DB] flex-shrink-0" />}
+                      <span className={
+                        isDone    ? "text-xs text-[#9CA3AF] line-through" :
+                        isRunning ? "text-xs font-medium text-[#ec4899]" :
+                                    "text-xs text-[#9CA3AF]"
+                      }>{label}</span>
+                      {isRunning && (
+                        <span className="flex gap-0.5 ml-1">
+                          {[0,1,2].map(i => (
+                            <span key={i} className="w-1 h-1 rounded-full bg-[#ec4899] animate-bounce"
+                              style={{ animationDelay: `${i * 150}ms` }} />
+                          ))}
+                        </span>
                       )}
-                    >
-                      <div className="mt-0.5 flex-shrink-0"><StepIcon status={status} /></div>
-                      <div>
-                        <p className={clsx("text-sm font-medium", isActive ? "text-[#1a73e8]" : "text-[#111827]")}>
-                          {step.label}
-                        </p>
-                        {isActive && <p className="text-xs text-[#6B7280] mt-0.5">{step.detail}</p>}
-                      </div>
                     </div>
                   );
                 })}
               </div>
-              <p className="text-xs text-[#9CA3AF]">Audit usually takes 30–60 seconds</p>
+              <p className="text-[10px] text-[#9CA3AF] mt-3">Usually ready in 30–60 seconds</p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     );
   }
