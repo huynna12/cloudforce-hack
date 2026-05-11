@@ -1,5 +1,11 @@
 import asyncio
-from utils.youtube import extract_video_id, get_video_metadata, get_transcript, format_transcript_for_llm
+from utils.youtube import (
+    extract_video_id,
+    get_video_metadata,
+    get_transcript,
+    validate_duration,
+    format_transcript_for_llm,
+)
 
 
 class TranscriptAgent:
@@ -13,10 +19,11 @@ class TranscriptAgent:
             get_transcript(video_id),
         )
 
-        duration = 0.0
-        if transcript:
-            last = transcript[-1]
-            duration = last["start"] + last.get("duration", 0)
+        # Reject clips, Shorts, and anything too short to be a lecture
+        validate_duration(transcript)
+
+        last = transcript[-1]
+        duration = last["start"] + last.get("duration", 0)
         metadata["duration"] = duration
 
         transcript_text = format_transcript_for_llm(transcript)

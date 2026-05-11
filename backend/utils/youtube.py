@@ -3,8 +3,17 @@ import asyncio
 import httpx
 from youtube_transcript_api import YouTubeTranscriptApi
 
+# Minimum lecture length — anything shorter isn't worth processing
+MIN_DURATION_SECONDS = 120  # 2 minutes
+
 
 def extract_video_id(url: str) -> str:
+    url = url.strip()
+
+    # Reject YouTube Shorts upfront
+    if "/shorts/" in url:
+        raise ValueError("YouTube Shorts aren't supported — please paste a full lecture video URL.")
+
     patterns = [
         r'(?:v=)([0-9A-Za-z_-]{11})',
         r'youtu\.be\/([0-9A-Za-z_-]{11})',
@@ -15,21 +24,46 @@ def extract_video_id(url: str) -> str:
         match = re.search(pattern, url)
         if match:
             return match.group(1)
-    raise ValueError("Could not extract video ID. Please paste a valid YouTube URL.")
+
+    if "youtube.com" in url or "youtu.be" in url:
+        raise ValueError("Couldn't find a video ID in that YouTube URL. Make sure it's a standard watch link (youtube.com/watch?v=...).")
+
+    raise ValueError("That doesn't look like a YouTube URL. Please paste a link from youtube.com or youtu.be.")
 
 
 async def get_video_metadata(video_id: str) -> dict:
-    oembed_url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+    oembed_url = (
+        f"https://www.youtube.com/oembed"
+        f"?url=https://www.youtube.com/watch?v={video_id}&format=json"
+    )
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.get(oembed_url)
-        if response.status_code != 200:
-            raise ValueError("Video not found or not publicly accessible.")
-        data = response.json()
+
+    if response.status_code == 401:
+        raise ValueError("This video is age-restricted or private. Please use a publicly accessible lecture video.")
+    if response.status_code == 403:
+        raise ValueError("This video is private. Please use a publicly accessible lecture video.")
+    if response.status_code == 404:
+        raise ValueError("Video not found. Please check the URL and make sure the video is public.")
+    if response.status_code != 200:
+        raise ValueError(f"Couldn't access this video (status {response.status_code}). Make sure it's a public YouTube video.")
+
+    data = response.json()
+
+    # oEmbed returns type "video" for normal videos and may differ for live
+    # The title often contains "LIVE" for active streams — catch obvious cases
+    title = data.get("title", "")
+    if any(kw in title.upper() for kw in ["#LIVE", "LIVE STREAM", "LIVESTREAM"]):
+        raise ValueError("This appears to be a livestream. Please use a recorded lecture video instead.")
+
     return {
         "video_id": video_id,
-        "title": data.get("title", "Untitled Lecture"),
+        "title": title or "Untitled Lecture",
         "author": data.get("author_name", "Unknown"),
-        "thumbnail_url": data.get("thumbnail_url", f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"),
+        "thumbnail_url": data.get(
+            "thumbnail_url",
+            f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+        ),
     }
 
 
@@ -39,24 +73,54 @@ async def get_transcript(video_id: str) -> list[dict]:
     def _fetch():
         api = YouTubeTranscriptApi()
         try:
-            # Try English first (manual or auto)
             snippets = api.fetch(video_id, languages=["en", "en-US", "en-GB"])
-        except Exception:
+        except Exception as e:
+            err = str(e).lower()
+
+            # Livestream / no transcript available
+            if "live" in err or "streaming" in err:
+                raise ValueError("This video is a live stream and doesn't have a transcript yet. Try again after it's been processed by YouTube.")
+
+            if "disabled" in err or "no transcript" in err or "not available" in err:
+                raise ValueError("This video has no captions. Heidi needs captions to work — try a lecture that has auto-generated or manual captions enabled.")
+
+            if "too many requests" in err or "429" in err:
+                raise ValueError("YouTube is rate-limiting requests right now. Please wait a moment and try again.")
+
+            # Fall back to any available language
             try:
-                # Fall back to whichever language is available
                 available = [t.language_code for t in api.list(video_id)]
                 if not available:
-                    raise ValueError("No transcript found for this video.")
+                    raise ValueError("No captions found for this video. Please use a lecture with captions enabled.")
                 snippets = api.fetch(video_id, languages=available)
             except ValueError:
                 raise
-            except Exception as e:
-                raise ValueError(f"Failed to fetch transcript: {str(e)}")
+            except Exception:
+                raise ValueError("Couldn't fetch captions for this video. Please make sure the video is public and has captions enabled.")
 
-        # v1 returns FetchedTranscriptSnippet objects — convert to plain dicts
-        return [{"text": s.text, "start": s.start, "duration": s.duration} for s in snippets]
+        return [
+            {"text": s.text, "start": s.start, "duration": s.duration}
+            for s in snippets
+        ]
 
     return await loop.run_in_executor(None, _fetch)
+
+
+def validate_duration(transcript: list[dict]) -> None:
+    """Reject videos that are too short to be a lecture."""
+    if not transcript:
+        raise ValueError("This video has no usable transcript content.")
+
+    last = transcript[-1]
+    duration = last["start"] + last.get("duration", 0)
+
+    if duration < MIN_DURATION_SECONDS:
+        minutes = int(duration // 60)
+        seconds = int(duration % 60)
+        raise ValueError(
+            f"This video is only {minutes}m {seconds}s long — Heidi works best with lecture videos "
+            f"that are at least 2 minutes. Please try a full lecture."
+        )
 
 
 def format_transcript_for_llm(transcript: list[dict]) -> str:

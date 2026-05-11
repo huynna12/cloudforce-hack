@@ -38,19 +38,28 @@ function StepIcon({ status }: { status: AgentStatus }) {
 
 export default function ProcessingView({ progress, metadata, error }: Props) {
   if (error) {
+    // Pick a helpful hint based on what went wrong
+    const hint =
+      error.toLowerCase().includes("private") ? "Make sure the video is set to Public on YouTube." :
+      error.toLowerCase().includes("caption") || error.toLowerCase().includes("transcript") ? "Try a lecture that has captions — most university lectures do." :
+      error.toLowerCase().includes("live") || error.toLowerCase().includes("stream") ? "Livestreams aren't supported. Try a recorded lecture instead." :
+      error.toLowerCase().includes("short") || error.toLowerCase().includes("2 minute") ? "Heidi works best with full lectures, not short clips." :
+      error.toLowerCase().includes("url") ? "Paste a standard YouTube link — youtube.com/watch?v=..." :
+      "Check that the video is public and has captions enabled.";
+
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 animate-fade-in">
         <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
           <span className="text-2xl">⚠️</span>
         </div>
-        <div className="text-center max-w-sm">
-          <p className="font-medium text-[#111827]">Something went wrong</p>
-          <p className="text-sm text-[#6B7280] mt-1">{error}</p>
+        <div className="text-center max-w-sm space-y-2">
+          <p className="font-medium text-[#111827]">Couldn't process this video</p>
+          <p className="text-sm text-[#6B7280]">{error}</p>
+          <p className="text-xs text-[#9CA3AF] bg-[#F9FAFB] border border-[#F3F4F6] rounded-lg px-3 py-2 mt-2">
+            💡 {hint}
+          </p>
         </div>
-        <a
-          href="/"
-          className="text-sm text-[#1a73e8] hover:underline"
-        >
+        <a href="/" className="text-sm text-[#1a73e8] hover:underline">
           Try a different video
         </a>
       </div>
