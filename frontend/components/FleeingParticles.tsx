@@ -220,7 +220,7 @@ function drawDeathBurst(ctx: CanvasRenderingContext2D, a: Asteroid) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function FleeingParticles() {
+export default function FleeingParticles({ onIntroDone }: { onIntroDone?: () => void } = {}) {
   const canvasRef    = useRef<HTMLCanvasElement>(null);
   const mouseRef     = useRef({ x: -999, y: -999 });
   const asteroids    = useRef<Asteroid[]>([]);
@@ -581,8 +581,8 @@ export default function FleeingParticles() {
         >
           <p
             className="text-4xl sm:text-6xl font-bold text-[#111827] select-none"
-            style={{ animation: "introSplit 2.6s cubic-bezier(0.4,0,0.6,1) forwards" }}
-            onAnimationEnd={() => setShowIntro(false)}
+            style={{ animation: "introSplit 1s cubic-bezier(0.4,0,0.6,1) forwards" }}
+            onAnimationEnd={() => { setShowIntro(false); onIntroDone?.(); }}
           >
             Shoot while you wait
           </p>

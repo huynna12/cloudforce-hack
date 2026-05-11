@@ -38,6 +38,7 @@ export default function FacultyReportPage() {
   const [report, setReport] = useState<AuditReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [introComplete, setIntroComplete] = useState(false);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -91,12 +92,12 @@ export default function FacultyReportPage() {
   if (!isComplete) {
     return (
       <div className="min-h-screen bg-[#FAFAFA] relative">
-        <FleeingParticles />
+        <FleeingParticles onIntroDone={() => setIntroComplete(true)} />
 
-        {/* Error */}
-        {error && (
-          <div className="fixed inset-0 flex items-center justify-center px-4 z-20">
-            <div className="flex flex-col items-center gap-4 text-center max-w-sm animate-fade-in">
+        {/* Error — always visible, no intro gate */}
+        {error && introComplete && (
+          <div className="fixed inset-0 flex items-center justify-center px-4 z-20 animate-fade-in">
+            <div className="flex flex-col items-center gap-4 text-center max-w-sm">
               <div className="w-12 h-12 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-xl">⚠️</div>
               <p className="font-medium text-[#111827]">Something went wrong</p>
               <p className="text-sm text-[#6B7280]">{error}</p>
@@ -105,9 +106,9 @@ export default function FacultyReportPage() {
           </div>
         )}
 
-        {/* Top bar: back left, card centered */}
-        {!error && (
-          <div className="fixed inset-x-0 top-4 z-20 px-4">
+        {/* Top bar: back left, card centered — only shown after intro */}
+        {!error && introComplete && (
+          <div className="fixed inset-x-0 top-4 z-20 px-4 animate-fade-in">
             <div className="relative flex items-start justify-center">
               <Link
                 href="/faculty"
