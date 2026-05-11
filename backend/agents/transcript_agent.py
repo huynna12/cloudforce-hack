@@ -4,6 +4,7 @@ from utils.youtube import (
     get_video_metadata,
     get_transcript,
     validate_duration,
+    validate_content,
     format_transcript_for_llm,
 )
 
@@ -21,6 +22,8 @@ class TranscriptAgent:
 
         # Reject clips, Shorts, and anything too short to be a lecture
         validate_duration(transcript)
+        # Reject music videos and audio-only content with no real speech
+        validate_content(transcript)
 
         last = transcript[-1]
         duration = last["start"] + last.get("duration", 0)

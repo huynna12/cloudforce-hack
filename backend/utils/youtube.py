@@ -131,6 +131,39 @@ def validate_duration(transcript: list[dict]) -> None:
         )
 
 
+def validate_content(transcript: list[dict]) -> None:
+    """
+    Reject videos that are mostly music/noise rather than spoken content.
+    Music videos typically have the vast majority of their transcript segments
+    as [Music] markers with very few real words after stripping.
+    """
+    if not transcript:
+        return
+
+    noise = re.compile(r'\[[\w\s]+\]')
+    total = len(transcript)
+    noise_only = sum(
+        1 for seg in transcript
+        if not noise.sub("", seg["text"]).strip()
+    )
+
+    # If more than 60% of segments are pure noise, it's not a lecture
+    if total > 0 and (noise_only / total) > 0.6:
+        raise ValueError(
+            "This video doesn't appear to have spoken content — it looks like a music video or "
+            "audio-only content. Heidi works with lecture videos that have real speech."
+        )
+
+    # Secondary check: fewer than 80 words after stripping is not enough to work with
+    formatted = format_transcript_for_llm(transcript)
+    word_count = len(formatted.split())
+    if word_count < 80:
+        raise ValueError(
+            "This video has very little spoken content. Heidi works best with lecture videos "
+            "that have substantial speech — try a full university lecture."
+        )
+
+
 def format_transcript_for_llm(transcript: list[dict]) -> str:
     # Strip auto-generated noise markers like [Music], [Applause], [Laughter], etc.
     noise = re.compile(r'\[[\w\s]+\]')
