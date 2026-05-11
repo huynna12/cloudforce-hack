@@ -82,27 +82,23 @@ function TimestampPill({ seconds }: { seconds: number }) {
   );
 }
 
-// ── Score card (one per dimension) ───────────────────────────────────────────
+// ── Rating badge (simple pill for score rows) ─────────────────────────────────
 
-function ScoreCard({ category, rating }: { category: AuditCategory; rating: AuditRating }) {
-  const cat = CATEGORY_CONFIG[category] ?? CATEGORY_CONFIG.clarity;
-  const rat = RATING_CONFIG[rating]     ?? RATING_CONFIG.good;
+function RatingBadge({ rating }: { rating: AuditRating }) {
+  const r = RATING_CONFIG[rating] ?? RATING_CONFIG.good;
   return (
-    <div className={clsx(
-      "rounded-2xl border p-4 flex flex-col gap-3",
-      rat.bg, rat.border
-    )}>
-      <div className="flex items-center justify-between">
-        <cat.Icon className={clsx("w-4 h-4", cat.iconColor)} />
-        <RatingDots rating={rating} />
-      </div>
-      <div>
-        <p className="text-[11px] text-[#9CA3AF] font-medium">{cat.label}</p>
-        <p className={clsx("text-sm font-semibold mt-0.5", rat.text)}>{rat.label}</p>
-      </div>
-    </div>
+    <span className={clsx("text-[11px] font-medium px-2 py-0.5 rounded-full", r.bg, r.text)}>
+      {r.label}
+    </span>
   );
 }
+
+const CATEGORY_LABELS: Record<AuditCategory, string> = {
+  pedagogical:   "Pedagogical",
+  accessibility: "Accessibility",
+  equity:        "Equity",
+  clarity:       "Clarity",
+};
 
 // ── Issue card ────────────────────────────────────────────────────────────────
 
@@ -119,7 +115,7 @@ function IssueCard({
     <div className={clsx(
       "rounded-2xl border overflow-hidden transition-shadow",
       highlight
-        ? "border-[#ec4899]/30 bg-gradient-to-br from-[#fdf2f8] to-[#fce7f3] shadow-sm"
+        ? "border-[#1a73e8] bg-[#e8f0fe]/30 shadow-sm"
         : "border-[#E5E7EB] bg-white hover:shadow-sm"
     )}>
       <div
@@ -179,25 +175,27 @@ export default function AuditReportView({ report, videoTitle }: { report: AuditR
   return (
     <div className="space-y-6 animate-fade-in">
 
-      {/* ── Score cards ─────────────────────────────────────────────────────── */}
-      <div className="space-y-3">
+      {/* ── Overall scores ───────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 space-y-3">
         <SectionLabel>Overall assessment</SectionLabel>
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-2">
           {(Object.entries(report.overall) as [AuditCategory, AuditRating][]).map(([cat, rating]) => (
-            <ScoreCard key={cat} category={cat} rating={rating} />
+            <div key={cat} className="flex items-center justify-between gap-2 px-3 py-2 bg-[#FAFAFA] rounded-xl">
+              <span className="text-xs text-[#374151]">{CATEGORY_LABELS[cat] ?? cat}</span>
+              <RatingBadge rating={rating} />
+            </div>
           ))}
         </div>
-        {/* Summary */}
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] px-4 py-3">
-          <p className="text-sm text-[#374151] leading-relaxed">{report.summary}</p>
-        </div>
+        <p className="text-sm text-[#374151] leading-relaxed pt-1 border-t border-[#F3F4F6]">
+          {report.summary}
+        </p>
       </div>
 
       {/* ── Top priority ─────────────────────────────────────────────────────── */}
       <div className="space-y-2.5">
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-full bg-[#fce7f3] flex items-center justify-center flex-shrink-0">
-            <AlertTriangle className="w-3 h-3 text-[#ec4899]" />
+          <div className="w-5 h-5 rounded-full bg-[#e8f0fe] flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="w-3 h-3 text-[#1a73e8]" />
           </div>
           <p className="text-sm font-semibold text-[#111827]">If you change one thing, change this</p>
         </div>
