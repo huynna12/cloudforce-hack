@@ -6,6 +6,25 @@ from youtube_transcript_api import YouTubeTranscriptApi
 # Minimum lecture length — anything shorter isn't worth processing
 MIN_DURATION_SECONDS = 120  # 2 minutes
 
+# Title substrings that reliably indicate a music video (case-insensitive)
+_MUSIC_TITLE_MARKERS = {
+    "official music video", "official video", "official audio",
+    "official lyric video", "lyric video", "lyrics video",
+    "music video", "(mv)", " m/v", "m/v ", "(official)", "[official]",
+    "official visualizer", "official performance", "audio only",
+}
+
+
+def _is_music_video(title: str, author: str) -> bool:
+    """Heuristic check using metadata — fires before any transcript is fetched."""
+    t = title.lower()
+    a = author.lower()
+    # VEVO channels exclusively publish music
+    if "vevo" in a:
+        return True
+    # Common music video title patterns
+    return any(marker in t for marker in _MUSIC_TITLE_MARKERS)
+
 
 def extract_video_id(url: str) -> str:
     url = url.strip()
@@ -50,16 +69,24 @@ async def get_video_metadata(video_id: str) -> dict:
 
     data = response.json()
 
-    # oEmbed returns type "video" for normal videos and may differ for live
-    # The title often contains "LIVE" for active streams — catch obvious cases
-    title = data.get("title", "")
+    title  = data.get("title", "")
+    author = data.get("author_name", "")
+
+    # Reject active livestreams
     if any(kw in title.upper() for kw in ["#LIVE", "LIVE STREAM", "LIVESTREAM"]):
         raise ValueError("This appears to be a livestream. Please use a recorded lecture video instead.")
+
+    # Reject music videos — checked here so we never waste tokens on lyrics
+    if _is_music_video(title, author):
+        raise ValueError(
+            "This looks like a music video. Heidi is designed for educational lectures — "
+            "please paste a university lecture or tutorial video."
+        )
 
     return {
         "video_id": video_id,
         "title": title or "Untitled Lecture",
-        "author": data.get("author_name", "Unknown"),
+        "author": author or "Unknown",
         "thumbnail_url": data.get(
             "thumbnail_url",
             f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
