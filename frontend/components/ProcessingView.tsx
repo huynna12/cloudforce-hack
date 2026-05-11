@@ -133,7 +133,7 @@ export default function ProcessingView({ progress, metadata, error }: Props) {
           <StepRow label="Creating study materials" status={step2Status} />
         </div>
 
-        <p className="text-[10px] text-[#9CA3AF] mt-3">Usually ready in 30–60 seconds</p>
+        <p className="text-[10px] text-[#9CA3AF] mt-3">Usually ready in around 60 seconds</p>
       </div>
     </div>
   );

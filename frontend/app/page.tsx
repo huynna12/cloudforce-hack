@@ -145,14 +145,6 @@ export default function HomePage() {
           <span className="animate-gradient-x">into a study session</span>
         </h1>
 
-        {/* Sub */}
-        <p
-          className="animate-fade-in-up mt-5 text-base sm:text-lg text-[#6B7280] text-center max-w-md text-balance leading-relaxed"
-          style={{ animationDelay: "120ms" }}
-        >
-          Get a structured outline, smart summaries, flashcards, and AI search — in about 60 seconds.
-        </p>
-
         {/* ── Search bar ──────────────────────────────────────────────────── */}
         <form
           onSubmit={handleSubmit}
@@ -199,17 +191,6 @@ export default function HomePage() {
             <p className="text-xs text-red-500 pl-2 animate-fade-in">{error}</p>
           )}
 
-          {/* Example */}
-          <p className="text-center text-[11px] text-[#9CA3AF]">
-            Try an example:{" "}
-            <button
-              type="button"
-              onClick={() => setUrl("https://www.youtube.com/watch?v=aircAruvnKk")}
-              className="text-[#1a73e8] hover:underline"
-            >
-              3Blue1Brown — But what is a neural network?
-            </button>
-          </p>
         </form>
 
         {/* ── Step hints ────────────────────────────────────────────────── */}
@@ -235,9 +216,6 @@ export default function HomePage() {
           className="animate-slide-up w-full max-w-2xl mt-16"
           style={{ animationDelay: "300ms" }}
         >
-          <p className="text-center text-[11px] font-semibold uppercase tracking-widest text-[#9CA3AF] mb-5">
-            Everything you need to study smarter
-          </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {FEATURES.map(({ icon: Icon, label, detail, bg, fg }, i) => (
               <div

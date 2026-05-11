@@ -146,14 +146,6 @@ export default function FacultyPage() {
           <span className="animate-gradient-x">any video lecture</span>
         </h1>
 
-        {/* Sub */}
-        <p
-          className="animate-fade-in-up mt-5 text-base sm:text-lg text-[#6B7280] text-center max-w-md text-balance leading-relaxed"
-          style={{ animationDelay: "120ms" }}
-        >
-          Actionable report across pedagogy, accessibility, equity, and clarity — with timestamped suggestions.
-        </p>
-
         {/* ── Search bar ──────────────────────────────────────────────────── */}
         <form
           onSubmit={handleSubmit}
