@@ -37,6 +37,22 @@ const PILLARS = [
   },
 ];
 
+function validateYouTubeUrl(url: string): string | null {
+  const s = url.trim();
+  if (/\/shorts\//.test(s))
+    return "YouTube Shorts aren't supported — please paste a full lecture video URL.";
+  const patterns = [
+    /(?:v=)([0-9A-Za-z_-]{11})/,
+    /youtu\.be\/([0-9A-Za-z_-]{11})/,
+    /embed\/([0-9A-Za-z_-]{11})/,
+    /^([0-9A-Za-z_-]{11})$/,
+  ];
+  if (patterns.some((p) => p.test(s))) return null;
+  if (s.includes("youtube.com") || s.includes("youtu.be"))
+    return "Couldn't find a video ID in that URL. Use a standard youtube.com/watch?v=… link.";
+  return "That doesn't look like a YouTube URL. Please paste a link from youtube.com or youtu.be.";
+}
+
 export default function FacultyPage() {
   const router = useRouter();
   const [url, setUrl]       = useState("");
@@ -46,6 +62,10 @@ export default function FacultyPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url.trim() || loading) return;
+
+    const validationError = validateYouTubeUrl(url);
+    if (validationError) { setError(validationError); return; }
+
     setLoading(true);
     setError(null);
     try {
@@ -100,7 +120,7 @@ export default function FacultyPage() {
       />
 
       {/* ── Nav ─────────────────────────────────────────────────────────────── */}
-      <nav className="relative z-10 flex items-center justify-between px-6 py-4
+      <nav className="relative z-10 flex items-center justify-between px-6 py-3
                       border-b border-white/60 bg-white/50 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <Link
