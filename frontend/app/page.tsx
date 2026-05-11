@@ -83,9 +83,9 @@ export default function HomePage() {
 
       {/* Pink blob — bottom left */}
       <div
-        className="pointer-events-none absolute -bottom-48 -left-48 w-[560px] h-[560px] rounded-full z-0"
+        className="pointer-events-none absolute -bottom-48 -left-48 w-[700px] h-[700px] rounded-full z-0"
         style={{
-          background: "radial-gradient(circle, rgba(236,72,153,0.14) 0%, transparent 65%)",
+          background: "radial-gradient(circle, rgba(236,72,153,0.28) 0%, rgba(219,39,119,0.18) 40%, transparent 68%)",
           filter: "blur(72px)",
         }}
       />
