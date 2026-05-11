@@ -76,7 +76,7 @@ export default function FacultyPage() {
       <div
         className="pointer-events-none absolute -top-48 -right-48 w-[760px] h-[760px] rounded-full z-0"
         style={{
-          background: "radial-gradient(circle, rgba(236,72,153,0.28) 0%, rgba(219,39,119,0.18) 40%, transparent 68%)",
+          background: "radial-gradient(circle, rgba(236,72,153,0.28) 0%, rgba(219,39,119,0.18) 40%, transparent 60%)",
           filter: "blur(72px)",
         }}
       />
@@ -85,7 +85,7 @@ export default function FacultyPage() {
       <div
         className="pointer-events-none absolute -bottom-48 -left-48 w-[700px] h-[700px] rounded-full z-0"
         style={{
-          background: "radial-gradient(circle, rgba(59,130,246,0.28) 0%, rgba(26,115,232,0.18) 40%, transparent 68%)",
+          background: "radial-gradient(circle, rgba(59,130,246,0.28) 0%, rgba(26,115,232,0.18) 40%, transparent 60%)",
           filter: "blur(72px)",
         }}
       />
