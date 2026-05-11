@@ -53,9 +53,9 @@ interface Star {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const MAX_ASTEROIDS   = 14;
-const SPAWN_MS_BASE   = 2400;
-const SPAWN_MS_MIN    = 700;
+const MAX_ASTEROIDS   = 22;
+const SPAWN_MS_BASE   = 2000;
+const SPAWN_MS_MIN    = 600;
 const WAVE_DURATION   = 20_000; // ms
 const EXPLOSION_R     = 72;
 const EXPLOSION_FRAMES = 24;
@@ -238,10 +238,11 @@ export default function FleeingParticles() {
   const comboRef     = useRef(0);
   const comboTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [score, setScore] = useState(0);
-  const [best,  setBest]  = useState(0);
-  const [wave,  setWave]  = useState(1);
-  const [combo, setCombo] = useState(0);
+  const [score, setScore]       = useState(0);
+  const [best,  setBest]        = useState(0);
+  const [wave,  setWave]        = useState(1);
+  const [combo, setCombo]       = useState(0);
+  const [showIntro, setShowIntro] = useState(true);
 
   useEffect(() => {
     const saved = parseInt(localStorage.getItem("heidi-shooter-best") || "0", 10);
@@ -272,7 +273,7 @@ export default function FleeingParticles() {
     window.addEventListener("resize", resize);
 
     // Seed initial asteroids
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 8; i++) {
       asteroids.current.push(spawnAsteroid(canvas.width, canvas.height, 1));
     }
 
@@ -571,6 +572,22 @@ export default function FleeingParticles() {
         className="fixed inset-0"
         style={{ zIndex: 0, pointerEvents: "auto", cursor: "none" }}
       />
+
+      {/* Intro text — appears once, splits out to sides and fades */}
+      {showIntro && (
+        <div
+          className="fixed inset-0 flex items-center justify-center pointer-events-none"
+          style={{ zIndex: 3 }}
+        >
+          <p
+            className="text-4xl sm:text-6xl font-bold text-[#111827] select-none"
+            style={{ animation: "introSplit 2.6s cubic-bezier(0.4,0,0.6,1) forwards" }}
+            onAnimationEnd={() => setShowIntro(false)}
+          >
+            Shoot while you wait
+          </p>
+        </div>
+      )}
 
       {/* HUD */}
       <div

@@ -95,4 +95,15 @@
     background-clip: text;
     animation: gradient-x 6s ease infinite;
   }
+
+  @keyframes introSplit {
+    0%, 55% {
+      opacity: 1;
+      letter-spacing: 0.02em;
+    }
+    100% {
+      opacity: 0;
+      letter-spacing: 0.7em;
+    }
+  }
 }
