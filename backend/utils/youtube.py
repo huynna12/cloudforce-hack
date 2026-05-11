@@ -132,11 +132,16 @@ def validate_duration(transcript: list[dict]) -> None:
 
 
 def format_transcript_for_llm(transcript: list[dict]) -> str:
+    # Strip auto-generated noise markers like [Music], [Applause], [Laughter], etc.
+    noise = re.compile(r'\[[\w\s]+\]')
     lines = []
     for seg in transcript:
+        text = noise.sub("", seg['text']).strip()
+        if not text:
+            continue  # skip segments that were only noise
         minutes = int(seg['start'] // 60)
         seconds = int(seg['start'] % 60)
-        lines.append(f"[{minutes:02d}:{seconds:02d}] {seg['text']}")
+        lines.append(f"[{minutes:02d}:{seconds:02d}] {text}")
     return "\n".join(lines)
 
 
