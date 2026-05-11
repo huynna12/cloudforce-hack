@@ -111,7 +111,7 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 # Create .env
-echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
+echo "ANTHROPIC_API_KEY=<your-api-key>" > .env
 
 uvicorn main:app --reload --port 8000
 ```
