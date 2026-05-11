@@ -2,12 +2,24 @@ import asyncio
 import uuid
 from typing import AsyncGenerator
 
+import anthropic as anthropic_lib
+
 from agents.transcript_agent import TranscriptAgent
 from agents.outline_agent import OutlineAgent
 from agents.synthesis_agent import SynthesisAgent
 from agents.search_agent import SearchAgent
 from agents.translation_agent import TranslationAgent
 from agents.tutor_agent import TutorAgent
+
+
+def _friendly_error(exc: Exception) -> str:
+    if isinstance(exc, anthropic_lib.RateLimitError):
+        return "We're processing too many videos right now — please wait 30 seconds and try again."
+    if isinstance(exc, anthropic_lib.APIConnectionError):
+        return "Couldn't reach the AI service. Check your internet connection and try again."
+    if isinstance(exc, anthropic_lib.APIStatusError):
+        return "The AI service returned an error. Please try again in a moment."
+    return str(exc)
 
 
 class Orchestrator:
@@ -145,9 +157,10 @@ class Orchestrator:
             })
 
         except Exception as exc:
+            msg = _friendly_error(exc)
             session["status"] = "error"
-            session["error"] = str(exc)
-            await queue.put({"type": "error", "error": str(exc)})
+            session["error"] = msg
+            await queue.put({"type": "error", "error": msg})
 
         finally:
             await queue.put(None)  # sentinel
