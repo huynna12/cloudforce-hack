@@ -190,9 +190,28 @@ export default function FacultyReportPage() {
   // ── Report ────────────────────────────────────────────────────────────────
   return (
     <VideoPlayerProvider>
-      <div className="min-h-screen bg-[#FAFAFA]">
+      <div className="min-h-screen bg-[#FAFAFA] relative overflow-x-hidden">
+
+        {/* Ambient blobs — very faint, don't interfere with readability */}
+        <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+          <div style={{
+            position: "absolute", top: "-80px", right: "-80px",
+            width: 480, height: 400,
+            borderRadius: "60% 40% 55% 45% / 50% 60% 40% 50%",
+            background: "radial-gradient(ellipse, #f9a8d4 0%, #ec4899 50%, transparent 80%)",
+            filter: "blur(72px)", opacity: 0.12,
+          }} />
+          <div style={{
+            position: "absolute", bottom: "-60px", left: "-60px",
+            width: 420, height: 360,
+            borderRadius: "45% 55% 40% 60% / 55% 45% 60% 40%",
+            background: "radial-gradient(ellipse, #93c5fd 0%, #3b82f6 50%, transparent 80%)",
+            filter: "blur(68px)", opacity: 0.1,
+          }} />
+        </div>
+
         {/* Header */}
-        <header className="sticky top-0 z-40 bg-white border-b border-[#E5E7EB] px-4 py-2.5 flex items-center justify-between gap-4">
+        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-[#E5E7EB] px-4 py-2.5 flex items-center justify-between gap-4">
           <Link href="/faculty" className="flex items-center gap-1.5 text-sm text-[#6B7280] hover:text-[#111827] flex-shrink-0">
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden sm:inline">New audit</span>
@@ -205,7 +224,7 @@ export default function FacultyReportPage() {
         </header>
 
         {/* Two-column layout: video left, report right */}
-        <div className="flex flex-col lg:flex-row max-w-7xl mx-auto px-4 py-6 gap-6">
+        <div className="relative z-10 flex flex-col lg:flex-row max-w-7xl mx-auto px-4 py-6 gap-6">
 
           {/* Left: video (sticky so faculty can click timestamps and watch) */}
           <div className="w-full lg:w-2/5 lg:sticky lg:top-20 lg:self-start space-y-3">
