@@ -72,31 +72,39 @@ async def get_transcript(video_id: str) -> list[dict]:
 
     def _fetch():
         api = YouTubeTranscriptApi()
+
+        # Step 1 — discover what captions actually exist
         try:
-            snippets = api.fetch(video_id, languages=["en", "en-US", "en-GB"])
+            transcript_list = list(api.list(video_id))
         except Exception as e:
             err = str(e).lower()
-
-            # Livestream / no transcript available
             if "live" in err or "streaming" in err:
                 raise ValueError("This video is a live stream and doesn't have a transcript yet. Try again after it's been processed by YouTube.")
-
-            if "disabled" in err or "no transcript" in err or "not available" in err:
-                raise ValueError("This video has no captions. Heidi needs captions to work — try a lecture that has auto-generated or manual captions enabled.")
-
             if "too many requests" in err or "429" in err:
                 raise ValueError("YouTube is rate-limiting requests right now. Please wait a moment and try again.")
+            raise ValueError("No captions found for this video. Please use a lecture with captions enabled.")
 
-            # Fall back to any available language
-            try:
-                available = [t.language_code for t in api.list(video_id)]
-                if not available:
-                    raise ValueError("No captions found for this video. Please use a lecture with captions enabled.")
-                snippets = api.fetch(video_id, languages=available)
-            except ValueError:
-                raise
-            except Exception:
-                raise ValueError("Couldn't fetch captions for this video. Please make sure the video is public and has captions enabled.")
+        if not transcript_list:
+            raise ValueError("No captions found for this video. Please use a lecture with captions enabled.")
+
+        # Step 2 — pick the best available transcript
+        # Priority: manual English > auto English > manual any language > auto any language
+        def preference(t) -> tuple:
+            is_english = t.language_code.lower().startswith("en")
+            is_manual  = not t.is_generated
+            return (0 if is_english else 1, 0 if is_manual else 1)
+
+        transcript_list.sort(key=preference)
+        best = transcript_list[0]
+
+        # Step 3 — fetch it
+        try:
+            snippets = best.fetch()
+        except Exception as e:
+            err = str(e).lower()
+            if "too many requests" in err or "429" in err:
+                raise ValueError("YouTube is rate-limiting requests right now. Please wait a moment and try again.")
+            raise ValueError("Couldn't fetch captions for this video. Please make sure the video is public and has captions enabled.")
 
         return [
             {"text": s.text, "start": s.start, "duration": s.duration}
