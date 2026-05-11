@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import {
@@ -14,7 +14,7 @@ import {
   Flashcard,
   KeyTerm,
 } from "@/lib/types";
-import { createEventSource, translateContent } from "@/lib/api";
+import { createEventSource, translateContent, startFacultyProcessing } from "@/lib/api";
 import { VideoPlayerProvider } from "@/contexts/VideoPlayerContext";
 import VideoPlayer from "@/components/VideoPlayer";
 import ProcessingView from "@/components/ProcessingView";
@@ -44,6 +44,8 @@ const REQUIRES_SESSION: Tab[] = ["search", "tutor"];
 
 export default function StudyPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
+  const router = useRouter();
+  const [auditLoading, setAuditLoading] = useState(false);
 
   const [progress, setProgress] = useState<AgentProgress>({
     transcript: "idle",
@@ -154,6 +156,19 @@ export default function StudyPage() {
   const displayFlashcards = language && translatedContent.flashcards ? translatedContent.flashcards : studyMaterials?.flashcards ?? [];
   const displayKeyTerms   = language && translatedContent.key_terms  ? translatedContent.key_terms  : studyMaterials?.key_terms  ?? [];
 
+  // ── Faculty audit shortcut ──────────────────────────────────────────────────
+  const handleAudit = useCallback(async () => {
+    if (!metadata || auditLoading) return;
+    setAuditLoading(true);
+    try {
+      const youtubeUrl = `https://www.youtube.com/watch?v=${metadata.video_id}`;
+      const { session_id } = await startFacultyProcessing(youtubeUrl);
+      router.push(`/faculty/report/${session_id}`);
+    } catch {
+      setAuditLoading(false);
+    }
+  }, [metadata, auditLoading, router]);
+
   // ── Loading state ───────────────────────────────────────────────────────────
   if (!isComplete) {
     return (
@@ -202,12 +217,23 @@ export default function StudyPage() {
           <div className="w-full lg:w-2/5 lg:sticky lg:top-20 lg:self-start">
             <VideoPlayer metadata={metadata} />
 
-            {/* Faculty audit link — subtle, below video */}
+            {/* Faculty audit shortcut — uses the same URL already loaded */}
             <div className="mt-3 flex items-center justify-between">
               <p className="text-xs text-[#9CA3AF]">Made this video yourself?</p>
-              <Link href="/faculty" className="text-xs text-[#1a73e8] hover:underline">
-                Get a video audit →
-              </Link>
+              <button
+                onClick={handleAudit}
+                disabled={auditLoading}
+                className="text-xs text-[#1a73e8] hover:underline disabled:opacity-50 flex items-center gap-1"
+              >
+                {auditLoading ? (
+                  <>
+                    <span className="w-3 h-3 border border-[#1a73e8]/30 border-t-[#1a73e8] rounded-full animate-spin" />
+                    Starting audit…
+                  </>
+                ) : (
+                  "Get a video audit →"
+                )}
+              </button>
             </div>
           </div>
 
