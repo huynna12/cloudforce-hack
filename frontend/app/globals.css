@@ -97,13 +97,31 @@
   }
 
   @keyframes introSplit {
-    0%, 55% {
+    0% {
+      opacity: 0;
+      letter-spacing: 0em;
+      transform: scale(0.96);
+    }
+    18% {
       opacity: 1;
       letter-spacing: 0.02em;
+      transform: scale(1);
+    }
+    60% {
+      opacity: 1;
+      letter-spacing: 0.02em;
+      transform: scale(1);
     }
     100% {
       opacity: 0;
-      letter-spacing: 0.7em;
+      letter-spacing: 0.65em;
+      transform: scale(1.04);
     }
+  }
+  @keyframes introSubFade {
+    0%   { opacity: 0; transform: translateY(6px); }
+    25%  { opacity: 1; transform: translateY(0); }
+    65%  { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-4px); }
   }
 }

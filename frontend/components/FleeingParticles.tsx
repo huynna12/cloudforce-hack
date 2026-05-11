@@ -573,25 +573,41 @@ export default function FleeingParticles({ onIntroDone }: { onIntroDone?: () => 
         style={{ zIndex: 0, pointerEvents: "auto", cursor: "none" }}
       />
 
-      {/* Intro text — appears once, splits out to sides and fades */}
+      {/* Intro text — appears once, fades in, holds, then splits out */}
       {showIntro && (
         <div
-          className="fixed inset-0 flex items-center justify-center pointer-events-none"
+          className="fixed inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none"
           style={{ zIndex: 3 }}
         >
+          {/* Soft scrim so text pops against the game */}
+          <div className="absolute inset-0 bg-white/20 backdrop-blur-[1px]" />
+
           <p
-            className="text-4xl sm:text-6xl font-bold text-[#111827] select-none"
-            style={{ animation: "introSplit 1s cubic-bezier(0.4,0,0.6,1) forwards" }}
+            className="relative select-none text-5xl sm:text-7xl font-bold tracking-tight"
+            style={{
+              animation: "introSplit 1s cubic-bezier(0.4,0,0.6,1) forwards",
+              background: "linear-gradient(135deg, #1a73e8 0%, #8b5cf6 50%, #ec4899 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
             onAnimationEnd={() => { setShowIntro(false); onIntroDone?.(); }}
           >
             Shoot while you wait
           </p>
+
+          <p
+            className="relative select-none text-sm text-[#6B7280] font-medium tracking-wide"
+            style={{ animation: "introSubFade 1s cubic-bezier(0.4,0,0.6,1) forwards" }}
+          >
+            Your lecture is being analyzed
+          </p>
         </div>
       )}
 
-      {/* HUD */}
-      <div
-        className="fixed top-4 right-4 flex flex-col items-end gap-1.5 select-none"
+      {/* HUD — hidden during intro */}
+      {!showIntro && <div
+        className="fixed top-4 right-4 flex flex-col items-end gap-1.5 select-none animate-fade-in"
         style={{ zIndex: 2 }}
       >
         {combo > 1 && (
@@ -610,7 +626,7 @@ export default function FleeingParticles({ onIntroDone }: { onIntroDone?: () => 
           </div>
         </div>
         <p className="text-[10px] text-[#9CA3AF]">Click to blast the shapes</p>
-      </div>
+      </div>}
     </>
   );
 }
