@@ -29,3 +29,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# ── Session store (runtime data, not source) ──────────────────────────────────
+sessions_store.json

@@ -63,7 +63,18 @@ export default function SearchPanel({ sessionId }: Props) {
 
       {/* Error */}
       {error && (
-        <p className="text-sm text-red-500">{error}</p>
+        <div className="px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-lg">
+          <p className="text-xs text-amber-700">
+            {error.toLowerCase().includes("session") || error.toLowerCase().includes("not found")
+              ? "This session has expired — the study materials are cached but Search needs a live connection."
+              : error}
+          </p>
+          {(error.toLowerCase().includes("session") || error.toLowerCase().includes("not found")) && (
+            <a href="/" className="text-xs text-amber-700 font-medium underline mt-1 inline-block">
+              Reprocess the video →
+            </a>
+          )}
+        </div>
       )}
 
       {/* Empty state */}

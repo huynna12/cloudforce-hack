@@ -1,5 +1,7 @@
 import asyncio
 import uuid
+import json
+import os
 from typing import AsyncGenerator
 
 import anthropic as anthropic_lib
@@ -11,6 +13,8 @@ from agents.search_agent import SearchAgent
 from agents.translation_agent import TranslationAgent
 from agents.tutor_agent import TutorAgent
 
+_SESSIONS_FILE = os.environ.get("SESSIONS_FILE", "sessions_store.json")
+
 
 def _friendly_error(exc: Exception) -> str:
     if isinstance(exc, anthropic_lib.RateLimitError):
@@ -20,6 +24,28 @@ def _friendly_error(exc: Exception) -> str:
     if isinstance(exc, anthropic_lib.APIStatusError):
         return "The AI service returned an error. Please try again in a moment."
     return str(exc)
+
+
+def _load_sessions() -> dict:
+    """Load completed sessions from disk on startup."""
+    if not os.path.exists(_SESSIONS_FILE):
+        return {}
+    try:
+        with open(_SESSIONS_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_session(session_id: str, session: dict) -> None:
+    """Persist a single completed session to disk."""
+    try:
+        store = _load_sessions()
+        store[session_id] = session
+        with open(_SESSIONS_FILE, "w") as f:
+            json.dump(store, f)
+    except Exception:
+        pass  # never crash the pipeline over a disk write
 
 
 class Orchestrator:
@@ -33,7 +59,7 @@ class Orchestrator:
       4. SearchAgent      — Claude Haiku, cached transcript (on demand)
       5. TranslationAgent — Claude Haiku (on demand)
 
-    Sessions are stored in memory. Fine for judging scale (3–10 videos).
+    Completed sessions are persisted to disk so Search and Tutor survive backend restarts.
     """
 
     def __init__(self, anthropic_api_key: str):
@@ -44,26 +70,26 @@ class Orchestrator:
         self.translation_agent = TranslationAgent(anthropic_api_key)
         self.tutor_agent = TutorAgent(anthropic_api_key)
 
-        # session_id -> {"status", "metadata", "transcript_text", "study_materials", "error"}
-        self._sessions: dict[str, dict] = {}
-        # session_id -> asyncio.Queue of SSE events
+        # Restore completed sessions from disk — in-progress ones are gone after restart
+        self._sessions: dict[str, dict] = _load_sessions()
+        # session_id -> asyncio.Queue of SSE events (only live sessions)
         self._queues: dict[str, asyncio.Queue] = {}
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def create_session(self, youtube_url: str) -> str:
+    def create_session(self, youtube_url: str, metadata: dict | None = None) -> str:
         session_id = str(uuid.uuid4())
         self._sessions[session_id] = {
             "status": "processing",
-            "metadata": None,
+            "metadata": metadata,  # may be pre-fetched to avoid a duplicate network call
             "transcript_text": None,
             "study_materials": None,
             "error": None,
         }
         self._queues[session_id] = asyncio.Queue()
-        asyncio.create_task(self._run(session_id, youtube_url))
+        asyncio.create_task(self._run(session_id, youtube_url, metadata))
         return session_id
 
     async def stream_events(self, session_id: str) -> AsyncGenerator[dict, None]:
@@ -109,14 +135,14 @@ class Orchestrator:
     # Internal pipeline
     # ------------------------------------------------------------------
 
-    async def _run(self, session_id: str, youtube_url: str) -> None:
+    async def _run(self, session_id: str, youtube_url: str, metadata: dict | None = None) -> None:
         session = self._sessions[session_id]
         queue = self._queues[session_id]
 
         try:
             # ── Step 1: Transcript ──────────────────────────────────────
             await queue.put({"type": "progress", "agent": "transcript", "status": "running"})
-            transcript_data = await self.transcript_agent.run(youtube_url)
+            transcript_data = await self.transcript_agent.run(youtube_url, metadata=metadata)
             session["metadata"] = transcript_data["metadata"]
             session["transcript_text"] = transcript_data["transcript_text"]
             await queue.put({
@@ -148,6 +174,7 @@ class Orchestrator:
 
             # ── Done ────────────────────────────────────────────────────
             session["status"] = "complete"
+            _save_session(session_id, session)  # persist so restarts don't lose Search/Tutor
             await queue.put({
                 "type": "complete",
                 "data": {

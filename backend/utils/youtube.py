@@ -190,14 +190,17 @@ def validate_duration(transcript: list[dict]) -> None:
         )
 
 
-def validate_content(transcript: list[dict]) -> None:
+def validate_content(transcript: list[dict]) -> str:
     """
     Reject videos that are mostly music/noise rather than spoken content.
     Music videos typically have the vast majority of their transcript segments
     as [Music] markers with very few real words after stripping.
+
+    Returns the formatted transcript text so callers can reuse it without
+    calling format_transcript_for_llm a second time.
     """
     if not transcript:
-        return
+        return ""
 
     noise = re.compile(r'\[[\w\s]+\]')
     total = len(transcript)
@@ -221,6 +224,8 @@ def validate_content(transcript: list[dict]) -> None:
             "This video has very little spoken content. Heidi works best with lecture videos "
             "that have substantial speech — try a full university lecture."
         )
+
+    return formatted
 
 
 def format_transcript_for_llm(transcript: list[dict]) -> str:

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Summaries, SummaryDepth } from "@/lib/types";
 import clsx from "clsx";
 
@@ -47,6 +48,7 @@ export default function SummaryPanel({ summaries }: Props) {
       {/* Markdown content */}
       <div key={active} className="animate-fade-in">
         <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
           components={{
             h1: ({ children }) => (
               <h1 className="text-base font-bold text-[#111827] mt-5 mb-2 pb-1 border-b border-[#E5E7EB]">
@@ -91,14 +93,38 @@ export default function SummaryPanel({ summaries }: Props) {
                 {children}
               </blockquote>
             ),
-            code: ({ children }) => (
-              <code className="text-xs bg-[#F3F4F6] text-[#374151] px-1.5 py-0.5 rounded font-mono">
+            // Block code fences — amber math block; code inside inherits, no double-styling
+            pre: ({ children }) => (
+              <pre className="my-3 px-4 py-3 bg-amber-50 border border-amber-100 rounded-lg overflow-x-auto leading-relaxed whitespace-pre">
                 {children}
-              </code>
+              </pre>
             ),
+            code: ({ node, children, className }) => {
+              // Block code sits inside a <pre> — let pre handle visual styling
+              const isBlock = !!className || String(children).includes("\n");
+              if (isBlock) {
+                return (
+                  <code className="font-mono text-sm text-amber-900 bg-transparent">
+                    {children}
+                  </code>
+                );
+              }
+              // Inline code — subtle amber pill
+              return (
+                <code className="text-xs bg-amber-50 text-amber-800 border border-amber-100 px-1.5 py-0.5 rounded font-mono">
+                  {children}
+                </code>
+              );
+            },
           }}
         >
-          {summaries[active]}
+          {summaries[active]
+            // Strip embedded [MM:SS] timestamps — summaries are for reading, not navigation
+            .replace(/ ?\[\d{1,2}:\d{2}(?::\d{2})?\]/g, "")
+            // Strip leading bullet/dot char that LLM adds inside list items (our li renderer adds its own)
+            .replace(/^([ \t]*[-*+]\s+)[•·⁃∙◦▪▸►●]\s*/gm, "$1")
+            // Safety net: replace any code-fenced blocks with their plain-text content
+            .replace(/```[^\n]*\n([\s\S]*?)```/g, (_, inner) => inner.trim())}
         </ReactMarkdown>
       </div>
     </div>

@@ -6,6 +6,46 @@ import { OutlineSection, secondsToDisplay } from "@/lib/types";
 import { useVideoPlayer } from "@/contexts/VideoPlayerContext";
 import clsx from "clsx";
 
+// Matches [MM:SS] or [H:MM:SS] timestamps embedded in text by the LLM
+const TIMESTAMP_RE = /\[(\d{1,2}):(\d{2})(?::(\d{2}))?\]/g;
+
+function parseTimestamp(match: string): number {
+  const parts = match.slice(1, -1).split(":").map(Number);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return parts[0] * 60 + parts[1];
+}
+
+/** Renders a string, turning any [MM:SS] patterns into clickable blue badge buttons. */
+function TextWithTimestamps({
+  text,
+  seekTo,
+}: {
+  text: string;
+  seekTo: (s: number) => void;
+}) {
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  let match: RegExpExecArray | null;
+  TIMESTAMP_RE.lastIndex = 0;
+
+  while ((match = TIMESTAMP_RE.exec(text)) !== null) {
+    if (match.index > last) parts.push(text.slice(last, match.index));
+    const secs = parseTimestamp(match[0]);
+    parts.push(
+      <button
+        key={match.index}
+        onClick={(e) => { e.stopPropagation(); seekTo(secs); }}
+        className="inline-block text-[10px] font-mono text-[#1a73e8] bg-[#e8f0fe] px-1.5 py-0.5 rounded hover:bg-[#aecbfa] transition-colors mx-0.5 align-middle"
+      >
+        {secondsToDisplay(secs)}
+      </button>
+    );
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
+}
+
 interface Props {
   outline: OutlineSection[];
 }
@@ -58,7 +98,7 @@ export default function OutlinePanel({ outline }: Props) {
               </div>
               {expanded.has(i) && (
                 <p className="text-xs text-[#6B7280] mt-1 leading-relaxed">
-                  {section.summary}
+                  <TextWithTimestamps text={section.summary} seekTo={seekTo} />
                 </p>
               )}
             </div>
@@ -72,13 +112,12 @@ export default function OutlinePanel({ outline }: Props) {
                   key={j}
                   className="flex items-start justify-between gap-3 px-4 py-2.5"
                 >
-                  <p className="text-xs text-[#374151] leading-relaxed flex-1">{pt.text}</p>
+                  <p className="text-xs text-[#374151] leading-relaxed flex-1">
+                    <TextWithTimestamps text={pt.text} seekTo={seekTo} />
+                  </p>
                   <button
                     onClick={() => seekTo(pt.timestamp)}
-                    className={clsx(
-                      "flex-shrink-0 text-xs font-mono text-[#6B7280]",
-                      "hover:text-[#1a73e8] hover:underline transition-colors"
-                    )}
+                    className="flex-shrink-0 text-xs font-mono text-[#1a73e8] bg-[#e8f0fe] px-2 py-0.5 rounded-md hover:bg-[#aecbfa] transition-colors"
                   >
                     {secondsToDisplay(pt.timestamp)}
                   </button>

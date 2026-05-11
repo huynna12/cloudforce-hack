@@ -20,6 +20,7 @@ interface Asteroid {
   points: number;
   dying: boolean;
   dyingProgress: number; // 0 → 1
+  entered: boolean;      // has the shape crossed into the visible canvas yet?
 }
 
 interface Laser {
@@ -119,6 +120,7 @@ function spawnAsteroid(w: number, h: number, wave: number): Asteroid {
     type: TYPES[Math.floor(Math.random() * TYPES.length)],
     size, points,
     dying: false, dyingProgress: 0,
+    entered: false,
   };
 }
 
@@ -142,6 +144,7 @@ function splitAsteroid(a: Asteroid): Asteroid[] {
       size: "medium" as const,
       points: 2,
       dying: false, dyingProgress: 0,
+      entered: true, // spawns inside the canvas — bounce immediately
     };
   });
 }
@@ -467,12 +470,25 @@ export default function FleeingParticles({ onIntroDone }: { onIntroDone?: () => 
         a.y += a.vy;
         a.rotation += a.rotationSpeed;
 
-        // Remove if escaped off-screen
-        const pad = 80;
-        if (
-          a.x < -pad || a.x > canvas.width + pad ||
-          a.y < -pad || a.y > canvas.height + pad
-        ) continue;
+        // Shapes drift in from outside — once they cross into the canvas they bounce
+        if (!a.entered) {
+          if (
+            a.x > a.radius && a.x < canvas.width  - a.radius &&
+            a.y > a.radius && a.y < canvas.height - a.radius
+          ) {
+            a.entered = true;
+          } else if (
+            // Safety: discard if it somehow drifts further away (shouldn't happen)
+            a.x < -a.radius * 4 || a.x > canvas.width  + a.radius * 4 ||
+            a.y < -a.radius * 4 || a.y > canvas.height + a.radius * 4
+          ) continue;
+        } else {
+          // Bounce off all four edges
+          if (a.x - a.radius < 0)             { a.x = a.radius;                a.vx =  Math.abs(a.vx); }
+          if (a.x + a.radius > canvas.width)  { a.x = canvas.width  - a.radius; a.vx = -Math.abs(a.vx); }
+          if (a.y - a.radius < 0)             { a.y = a.radius;                a.vy =  Math.abs(a.vy); }
+          if (a.y + a.radius > canvas.height) { a.y = canvas.height - a.radius; a.vy = -Math.abs(a.vy); }
+        }
 
         // Highlight near cursor
         const dx   = a.x - mouseRef.current.x;

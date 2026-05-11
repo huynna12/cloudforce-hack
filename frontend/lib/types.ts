@@ -29,6 +29,7 @@ export interface Flashcard {
   back: string;
   timestamp: number;
   source_text: string;
+  expression?: string; // For formula flashcards — the actual notation e.g. "T(n) = 2T(n/2) + Θ(n)"
 }
 
 export interface KeyTerm {

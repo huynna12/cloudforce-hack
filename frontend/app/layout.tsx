@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: "Heidi — Turn any lecture into a study session",
   description:
     "Paste a YouTube lecture URL. Get a structured outline, summaries, flashcards, and semantic search — instantly.",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/favicon.png",
+  },
   openGraph: {
     title: "Heidi",
     description: "Turn any lecture into a personalized study environment.",

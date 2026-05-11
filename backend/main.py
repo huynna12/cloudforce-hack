@@ -117,8 +117,8 @@ async def start_processing(request: ProcessRequest):
     """Validate the video synchronously, then create a session. Errors return 400 before any navigation."""
     try:
         video_id = extract_video_id(request.youtube_url)
-        await get_video_metadata(video_id)   # raises ValueError for music, private, live, etc.
-        session_id = orchestrator.create_session(request.youtube_url)
+        metadata = await get_video_metadata(video_id)   # raises ValueError for music, private, live, etc.
+        session_id = orchestrator.create_session(request.youtube_url, metadata=metadata)
         return {"session_id": session_id}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -23,24 +23,22 @@ import OutlinePanel from "@/components/OutlinePanel";
 import SummaryPanel from "@/components/SummaryPanel";
 import FlashcardsPanel from "@/components/FlashcardsPanel";
 import KeyTermsPanel from "@/components/KeyTermsPanel";
-import SearchPanel from "@/components/SearchPanel";
-import TutorPanel from "@/components/TutorPanel";
+import AskPanel from "@/components/AskPanel";
 import LanguageSelector from "@/components/LanguageSelector";
 import clsx from "clsx";
 
-type Tab = "outline" | "summary" | "flashcards" | "terms" | "search" | "tutor";
+type Tab = "outline" | "summary" | "flashcards" | "terms" | "ask";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "outline",    label: "Outline" },
   { key: "summary",   label: "Summary" },
   { key: "flashcards", label: "Flashcards" },
   { key: "terms",     label: "Key Terms" },
-  { key: "search",    label: "Search" },
-  { key: "tutor",     label: "Tutor" },
+  { key: "ask",       label: "Ask" },
 ];
 
-// Search and Tutor need a live backend session — they don't work from cache
-const REQUIRES_SESSION: Tab[] = ["search", "tutor"];
+// Ask needs a live backend session — doesn't work from cache
+const REQUIRES_SESSION: Tab[] = ["ask"];
 
 export default function StudyPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -314,8 +312,7 @@ export default function StudyPage() {
                   ? <KeyTermsPanel keyTerms={displayKeyTerms} />
                   : <p className="text-sm text-[#6B7280] text-center py-10">No key terms found in this lecture.</p>
               )}
-              {activeTab === "search" && <SearchPanel sessionId={sessionId} />}
-              {activeTab === "tutor"  && <TutorPanel  sessionId={sessionId} />}
+              {activeTab === "ask" && <AskPanel sessionId={sessionId} />}
             </div>
           </div>
         </div>

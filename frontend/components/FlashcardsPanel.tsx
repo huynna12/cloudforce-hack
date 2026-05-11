@@ -80,9 +80,18 @@ export default function FlashcardsPanel({ flashcards }: Props) {
             <div className="text-[10px] font-medium uppercase tracking-wider text-[#1a73e8]">
               Answer
             </div>
-            <p className="text-sm text-[#111827] leading-relaxed text-center px-2">
-              {card.back}
-            </p>
+            <div className="flex flex-col gap-2 px-2">
+              {card.expression && (
+                <div className="px-3 py-2 bg-amber-50 border border-amber-100 rounded-md">
+                  <p className="text-sm font-mono text-amber-800 tracking-wide text-center">
+                    {card.expression}
+                  </p>
+                </div>
+              )}
+              <p className="text-sm text-[#111827] leading-relaxed text-center">
+                {card.back}
+              </p>
+            </div>
             <div className="flex items-center justify-between">
               <p className="text-[10px] text-[#6B7280] italic line-clamp-1 max-w-[60%]">
                 &ldquo;{card.source_text}&rdquo;

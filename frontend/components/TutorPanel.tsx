@@ -165,7 +165,18 @@ export default function TutorPanel({ sessionId }: Props) {
         )}
 
         {error && (
-          <p className="text-xs text-red-500 text-center">{error}</p>
+          <div className="px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-lg text-center">
+            <p className="text-xs text-amber-700">
+              {error.toLowerCase().includes("session") || error.toLowerCase().includes("not found")
+                ? "This session has expired — Tutor needs a live connection."
+                : error}
+            </p>
+            {(error.toLowerCase().includes("session") || error.toLowerCase().includes("not found")) && (
+              <a href="/" className="text-xs text-amber-700 font-medium underline mt-1 inline-block">
+                Reprocess the video →
+              </a>
+            )}
+          </div>
         )}
 
         <div ref={bottomRef} />
