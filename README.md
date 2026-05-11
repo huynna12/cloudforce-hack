@@ -1,11 +1,9 @@
-## Live at: 
+**Live at:** 
 [https://cloudforce-hack.vercel.app/](https://cloudforce-hack.vercel.app/)
 
-**Turn any YouTube lecture into a complete study environment — or a private faculty audit — in under 60 seconds.**
-
+## Overview
+Turn any YouTube lecture into a complete study environment — or a private faculty audit — in under 60 seconds.
 Built for [The Frontier Internship](https://www.cloudforcehq.com/) — Cloudforce Hackathon, May 2025.
-
----
 
 ## Capabilities
 
@@ -32,7 +30,6 @@ A faculty member pastes their own lecture URL. Heidi audits it across pedagogica
 
 The report is explicitly for the faculty member only — this is a tool for self-improvement, not surveillance.
 
----
 
 ## Agent Architecture
 
@@ -77,7 +74,6 @@ YouTube URL
 - Session persistence to disk — sessions survive backend restarts so Ask and Search remain functional across the judging window
 - Pre-fetched metadata — YouTube metadata is validated once on `/api/process`, then passed through the pipeline to avoid duplicate API calls
 
----
 
 ## Tech Stack
 
@@ -89,8 +85,6 @@ YouTube URL
 - `claude-sonnet-4-5` — outline, summaries, flashcards, key terms, tutor, faculty audit
 - `claude-haiku-4-5` — semantic search (speed-optimized)
 
----
-
 ## Validation Layers
 
 The app rejects invalid input before any AI processing begins:
@@ -100,8 +94,6 @@ The app rejects invalid input before any AI processing begins:
 - Music videos detected via YouTube category API + title heuristics + transcript noise ratio
 - Videos under 2 minutes or fewer than 80 words of speech → rejected
 - All errors surface on the homepage — users never navigate to a broken state
-
----
 
 ## Local Development
 
@@ -137,8 +129,6 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
-
----
 
 ## Deployment
 
