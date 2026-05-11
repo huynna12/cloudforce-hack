@@ -567,8 +567,8 @@ export default function FleeingParticles({ onIntroDone }: { onIntroDone?: () => 
 
   return (
     <>
-      {/* ── Cloud background — fixed blobs that drift slowly behind the game ── */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: -1 }}>
+      {/* ── Cloud background — sits below canvas via DOM order (same z-index, canvas comes after) ── */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
         {/* Top-left — blue */}
         <div style={{
           position: "absolute", top: "-10%", left: "-8%",
@@ -624,7 +624,7 @@ export default function FleeingParticles({ onIntroDone }: { onIntroDone?: () => 
       <canvas
         ref={canvasRef}
         className="fixed inset-0"
-        style={{ zIndex: 0, pointerEvents: "auto", cursor: "none" }}
+        style={{ zIndex: 1, pointerEvents: "auto", cursor: "none" }}
       />
 
       {/* Intro text — appears once, fades in, holds, then splits out */}
