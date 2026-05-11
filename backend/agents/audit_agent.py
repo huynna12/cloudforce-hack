@@ -1,3 +1,4 @@
+import re
 import anthropic
 from utils.json_utils import parse_llm_json
 
@@ -34,6 +35,13 @@ Rules for your report:
 - The top_priority is the single highest-impact change — the one thing worth fixing before publishing
 - Engagement: identify the section with the most momentum and the one that loses it
 - First impression: the first 3 minutes determine whether students keep watching — be specific
+
+CRITICAL QUOTING RULES — this is the most important part:
+- Every original_text field MUST be copied CHARACTER FOR CHARACTER from the transcript lines above.
+- Do NOT paraphrase, clean up, or reconstruct. Copy the raw words exactly as they appear.
+- The timestamp for each issue is the [MM:SS] value on the line where those words appear.
+- If a quote spans multiple lines, use the timestamp of the FIRST line.
+- If you cannot find an exact match in the transcript, do not invent a quote — skip that issue.
 
 Convert all timestamps from [MM:SS] format to seconds (e.g. [04:30] = 270.0).
 
@@ -93,7 +101,7 @@ Return JSON in exactly this format:
 }"""
 
 
-def count_filler_phrases(transcript_text: str) -> dict:
+def count_filler_phrases(transcript_text: str) -> int:
     """Count hedging/filler phrases directly from transcript without an LLM call."""
     fillers = [
         "sort of", "kind of", "you know", "basically", "essentially",
@@ -104,6 +112,77 @@ def count_filler_phrases(transcript_text: str) -> dict:
     for f in fillers:
         total += text_lower.count(f)
     return total
+
+
+def _parse_transcript_segments(transcript_text: str) -> list[tuple[float, str]]:
+    """
+    Parse the formatted transcript into (timestamp_seconds, text) pairs.
+    Each line looks like: [MM:SS] some text here
+    """
+    segments = []
+    for line in transcript_text.split('\n'):
+        m = re.match(r'\[(\d+):(\d+)\]\s+(.*)', line)
+        if m:
+            ts = int(m.group(1)) * 60 + int(m.group(2))
+            segments.append((float(ts), m.group(3)))
+    return segments
+
+
+def _find_best_timestamp(quote: str, segments: list[tuple[float, str]]) -> float | None:
+    """
+    Search the transcript for the segment whose text best matches the quote.
+    Uses a sliding window of 3 lines and word-overlap scoring.
+    Returns the corrected timestamp, or None if no good match found.
+    """
+    if not quote or not segments:
+        return None
+
+    quote_words = set(re.sub(r'[^\w\s]', '', quote.lower()).split())
+    if not quote_words:
+        return None
+
+    best_score = 0.45  # minimum word-overlap ratio to accept a match
+    best_ts = None
+
+    for i, (ts, _) in enumerate(segments):
+        # Build a window of up to 3 consecutive lines
+        window_text = ' '.join(
+            re.sub(r'[^\w\s]', '', seg[1].lower())
+            for seg in segments[i:i + 3]
+        )
+        window_words = set(window_text.split())
+
+        if not window_words:
+            continue
+
+        overlap = len(quote_words & window_words) / len(quote_words)
+        if overlap > best_score:
+            best_score = overlap
+            best_ts = ts
+
+    return best_ts
+
+
+def _verify_timestamps(report: dict, segments: list[tuple[float, str]]) -> dict:
+    """
+    After Claude returns the report, cross-check every quoted original_text
+    against the actual transcript. Correct the timestamp if a better match is found.
+    This catches hallucinated or paraphrased quotes with wrong timestamps.
+    """
+    def fix(item: dict) -> None:
+        quote = item.get("original_text", "")
+        if not quote:
+            return
+        corrected = _find_best_timestamp(quote, segments)
+        if corrected is not None:
+            item["timestamp"] = corrected
+
+    fix(report.get("top_priority", {}))
+
+    for issue in report.get("issues", []):
+        fix(issue)
+
+    return report
 
 
 class AuditAgent:
@@ -139,10 +218,13 @@ class AuditAgent:
         )
         report = parse_llm_json(response.content[0].text)
 
+        # Post-process: verify and correct timestamps for all quoted text
+        segments = _parse_transcript_segments(transcript_text)
+        report = _verify_timestamps(report, segments)
+
         # Enrich filler count with our own fast counter as a cross-check
         raw_count = count_filler_phrases(transcript_text)
         if "filler_phrases" in report:
-            # Trust Claude's count but sanity-check it
             report["filler_phrases"]["count"] = max(
                 report["filler_phrases"].get("count", 0), raw_count
             )
