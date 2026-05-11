@@ -50,25 +50,50 @@ def extract_video_id(url: str) -> str:
     raise ValueError("That doesn't look like a YouTube URL. Please paste a link from youtube.com or youtu.be.")
 
 
+_BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    )
+}
+
+
+async def _get_video_category(video_id: str, client: httpx.AsyncClient) -> str | None:
+    """Fetch the YouTube watch page and extract the video category (e.g. 'Music')."""
+    try:
+        resp = await client.get(
+            f"https://www.youtube.com/watch?v={video_id}",
+            headers=_BROWSER_HEADERS,
+            timeout=8.0,
+        )
+        match = re.search(r'"category":"([^"]+)"', resp.text)
+        return match.group(1) if match else None
+    except Exception:
+        return None  # don't block if page fetch fails
+
+
 async def get_video_metadata(video_id: str) -> dict:
     oembed_url = (
         f"https://www.youtube.com/oembed"
         f"?url=https://www.youtube.com/watch?v={video_id}&format=json"
     )
     async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(oembed_url)
+        oembed_resp, category = await asyncio.gather(
+            client.get(oembed_url),
+            _get_video_category(video_id, client),
+        )
 
-    if response.status_code == 401:
+    if oembed_resp.status_code == 401:
         raise ValueError("This video is age-restricted or private. Please use a publicly accessible lecture video.")
-    if response.status_code == 403:
+    if oembed_resp.status_code == 403:
         raise ValueError("This video is private. Please use a publicly accessible lecture video.")
-    if response.status_code == 404:
+    if oembed_resp.status_code == 404:
         raise ValueError("Video not found. Please check the URL and make sure the video is public.")
-    if response.status_code != 200:
-        raise ValueError(f"Couldn't access this video (status {response.status_code}). Make sure it's a public YouTube video.")
+    if oembed_resp.status_code != 200:
+        raise ValueError(f"Couldn't access this video (status {oembed_resp.status_code}). Make sure it's a public YouTube video.")
 
-    data = response.json()
-
+    data   = oembed_resp.json()
     title  = data.get("title", "")
     author = data.get("author_name", "")
 
@@ -76,7 +101,14 @@ async def get_video_metadata(video_id: str) -> dict:
     if any(kw in title.upper() for kw in ["#LIVE", "LIVE STREAM", "LIVESTREAM"]):
         raise ValueError("This appears to be a livestream. Please use a recorded lecture video instead.")
 
-    # Reject music videos — checked here so we never waste tokens on lyrics
+    # Reject by YouTube's own category — most reliable signal
+    if category and category.lower() == "music":
+        raise ValueError(
+            "This looks like a music video. Heidi is designed for educational lectures — "
+            "please paste a university lecture or tutorial video."
+        )
+
+    # Fallback: title/channel heuristic for cases where category fetch failed
     if _is_music_video(title, author):
         raise ValueError(
             "This looks like a music video. Heidi is designed for educational lectures — "
