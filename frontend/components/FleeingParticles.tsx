@@ -567,6 +567,60 @@ export default function FleeingParticles({ onIntroDone }: { onIntroDone?: () => 
 
   return (
     <>
+      {/* ── Cloud background — fixed blobs that drift slowly behind the game ── */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: -1 }}>
+        {/* Top-left — blue */}
+        <div style={{
+          position: "absolute", top: "-10%", left: "-8%",
+          width: 520, height: 420,
+          borderRadius: "60% 40% 55% 45% / 50% 60% 40% 50%",
+          background: "radial-gradient(ellipse at 40% 40%, #93c5fd 0%, #60a5fa 35%, #3b82f6 65%, transparent 100%)",
+          filter: "blur(64px)",
+          opacity: 0.35,
+          animation: "cloudDrift1 18s ease-in-out infinite",
+        }} />
+        {/* Top-right — pink */}
+        <div style={{
+          position: "absolute", top: "-5%", right: "-10%",
+          width: 480, height: 400,
+          borderRadius: "45% 55% 40% 60% / 55% 45% 60% 40%",
+          background: "radial-gradient(ellipse at 55% 45%, #f9a8d4 0%, #f472b6 40%, #ec4899 70%, transparent 100%)",
+          filter: "blur(60px)",
+          opacity: 0.3,
+          animation: "cloudDrift2 22s ease-in-out infinite",
+        }} />
+        {/* Center — lavender blend where they meet */}
+        <div style={{
+          position: "absolute", top: "20%", left: "30%",
+          width: 560, height: 360,
+          borderRadius: "50% 50% 45% 55% / 45% 55% 50% 50%",
+          background: "radial-gradient(ellipse at 50% 50%, #e9d5ff 0%, #c4b5fd 40%, #a78bfa 70%, transparent 100%)",
+          filter: "blur(80px)",
+          opacity: 0.22,
+          animation: "cloudDrift3 26s ease-in-out infinite",
+        }} />
+        {/* Bottom-left — pink accent */}
+        <div style={{
+          position: "absolute", bottom: "-12%", left: "5%",
+          width: 400, height: 350,
+          borderRadius: "55% 45% 50% 50% / 40% 60% 45% 55%",
+          background: "radial-gradient(ellipse at 45% 55%, #fbcfe8 0%, #f9a8d4 45%, #ec4899 80%, transparent 100%)",
+          filter: "blur(72px)",
+          opacity: 0.25,
+          animation: "cloudDrift2 20s ease-in-out infinite reverse",
+        }} />
+        {/* Bottom-right — blue accent */}
+        <div style={{
+          position: "absolute", bottom: "-8%", right: "0%",
+          width: 440, height: 380,
+          borderRadius: "40% 60% 55% 45% / 55% 45% 60% 40%",
+          background: "radial-gradient(ellipse at 55% 50%, #bfdbfe 0%, #93c5fd 40%, #3b82f6 75%, transparent 100%)",
+          filter: "blur(68px)",
+          opacity: 0.28,
+          animation: "cloudDrift1 24s ease-in-out infinite reverse",
+        }} />
+      </div>
+
       <canvas
         ref={canvasRef}
         className="fixed inset-0"
