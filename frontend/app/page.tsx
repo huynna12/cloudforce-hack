@@ -3,35 +3,35 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Layers, Search, Globe } from "lucide-react";
+import { ArrowRight, BookOpen, Layers, Search, Globe, Youtube, Sparkles } from "lucide-react";
 import { startProcessing } from "@/lib/api";
 
 const FEATURES = [
   {
     icon: Layers,
     label: "Structured outline",
-    detail: "Jump to any section instantly",
+    detail: "Timestamped sections — jump to any moment instantly.",
     bg: "bg-[#e8f0fe]",
     fg: "text-[#1a73e8]",
   },
   {
     icon: BookOpen,
     label: "Smart summaries",
-    detail: "Quick, core, or deep — you choose",
+    detail: "2-min recap, 5-min digest, or full breakdown — your call.",
     bg: "bg-[#ede9fe]",
     fg: "text-[#7c3aed]",
   },
   {
     icon: Search,
     label: "Semantic search",
-    detail: "Ask questions, find the moment",
+    detail: "Ask any question and jump to the exact moment in the video.",
     bg: "bg-[#fce7f3]",
     fg: "text-[#db2777]",
   },
   {
     icon: Globe,
     label: "10+ languages",
-    detail: "Study in your native language",
+    detail: "Translate everything to your native language in one click.",
     bg: "bg-[#ccfbf1]",
     fg: "text-[#0f766e]",
   },
@@ -39,17 +39,15 @@ const FEATURES = [
 
 export default function HomePage() {
   const router = useRouter();
-  const [url, setUrl] = useState("");
+  const [url, setUrl]       = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]   = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url.trim() || loading) return;
-
     setLoading(true);
     setError(null);
-
     try {
       const { session_id } = await startProcessing(url.trim());
       router.push(`/study/${session_id}`);
@@ -60,43 +58,58 @@ export default function HomePage() {
   };
 
   return (
-    <main className="min-h-screen flex flex-col relative overflow-hidden">
+    <main className="min-h-screen flex flex-col relative overflow-hidden bg-[#FAFAFA]">
 
-      {/* ── Background decoration ───────────────────────────────────────────── */}
+      {/* ── Background ──────────────────────────────────────────────────────── */}
 
       {/* Dot grid */}
       <div
-        className="pointer-events-none absolute inset-0"
+        className="pointer-events-none absolute inset-0 z-0"
         style={{
-          backgroundImage: "radial-gradient(circle, #9CA3AF 1px, transparent 1px)",
+          backgroundImage: "radial-gradient(circle, #cbd5e1 1px, transparent 1px)",
           backgroundSize: "28px 28px",
-          opacity: 0.22,
+          opacity: 0.55,
         }}
       />
 
-      {/* Soft blue blob — top right */}
+      {/* Blue blob — top right */}
       <div
-        className="pointer-events-none absolute -top-40 -right-40 w-[560px] h-[560px] rounded-full"
+        className="pointer-events-none absolute -top-48 -right-48 w-[640px] h-[640px] rounded-full z-0"
         style={{
-          background: "radial-gradient(circle, rgba(26,115,232,0.13) 0%, transparent 70%)",
-          filter: "blur(60px)",
+          background: "radial-gradient(circle, rgba(26,115,232,0.18) 0%, transparent 65%)",
+          filter: "blur(72px)",
         }}
       />
 
-      {/* Soft pink blob — bottom left */}
+      {/* Pink blob — bottom left */}
       <div
-        className="pointer-events-none absolute -bottom-40 -left-40 w-[480px] h-[480px] rounded-full"
+        className="pointer-events-none absolute -bottom-48 -left-48 w-[560px] h-[560px] rounded-full z-0"
         style={{
-          background: "radial-gradient(circle, rgba(236,72,153,0.10) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(236,72,153,0.14) 0%, transparent 65%)",
+          filter: "blur(72px)",
+        }}
+      />
+
+      {/* Purple blob — center */}
+      <div
+        className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full z-0"
+        style={{
+          background: "radial-gradient(circle, rgba(139,92,246,0.07) 0%, transparent 70%)",
           filter: "blur(60px)",
         }}
       />
 
       {/* ── Nav ─────────────────────────────────────────────────────────────── */}
-      <nav className="relative flex items-center justify-between px-6 py-4 border-b border-[#F3F4F6] bg-white/60 backdrop-blur-sm">
-        <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="Heidi logo" className="w-10 h-10 object-contain" style={{ mixBlendMode: "multiply" }} />
-          <span className="font-semibold text-[#111827] text-lg tracking-tight">Heidi</span>
+      <nav className="relative z-10 flex items-center justify-between px-6 py-4
+                      border-b border-white/60 bg-white/50 backdrop-blur-md">
+        <div className="flex items-center gap-2.5">
+          <img
+            src="/logo.png"
+            alt="Heidi"
+            className="w-9 h-9 object-contain"
+            style={{ mixBlendMode: "multiply" }}
+          />
+          <span className="font-bold text-[#111827] text-lg tracking-tight">Heidi</span>
         </div>
         <div className="flex items-center gap-3">
           <Link
@@ -106,111 +119,154 @@ export default function HomePage() {
           >
             For instructors
           </Link>
-          <span className="text-xs text-[#9CA3AF]">Powered by Cloudforce</span>
+          <span className="hidden sm:block text-xs text-[#9CA3AF]">Powered by Cloudforce</span>
         </div>
       </nav>
 
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
-      <div className="relative flex-1 flex flex-col items-center justify-center px-4 py-16">
-        <div className="w-full max-w-xl text-center space-y-6 animate-fade-in">
+      <section className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 pt-16 pb-10">
 
-          {/* Badge */}
-          <div className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full
-                          border border-[#E5E7EB] bg-white/80 text-[#6B7280] shadow-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#1a73e8] animate-pulse" />
-            AI-powered · ready in under 60 s
-          </div>
+        {/* Badge */}
+        <div className="animate-fade-in-up inline-flex items-center gap-2 mb-7
+                        text-xs font-medium px-3.5 py-1.5 rounded-full
+                        border border-[#E5E7EB] bg-white/90 text-[#6B7280] shadow-sm">
+          <Sparkles className="w-3.5 h-3.5 text-[#1a73e8]" />
+          AI-powered lecture companion
+        </div>
 
-          {/* Heading */}
-          <div>
-            <h1 className="text-4xl font-semibold text-[#111827] leading-tight tracking-tight text-balance">
-              Turn any lecture into a{" "}
-              <span className="animate-gradient-x">study session</span>
-            </h1>
-            <p className="mt-3 text-base text-[#6B7280] text-balance">
-              Paste a YouTube lecture URL. Get a structured outline, summaries, flashcards,
-              and semantic search — ready in under a minute.
-            </p>
-          </div>
+        {/* Heading */}
+        <h1
+          className="animate-fade-in-up text-center font-bold tracking-tight text-balance
+                     text-[2.6rem] sm:text-6xl leading-[1.08]"
+          style={{ animationDelay: "60ms" }}
+        >
+          <span className="text-[#111827]">Turn any lecture</span>
+          <br />
+          <span className="animate-gradient-x">into a study session</span>
+        </h1>
 
-          {/* Input */}
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="relative group">
-              <input
-                value={url}
-                onChange={(e) => { setUrl(e.target.value); setError(null); }}
-                placeholder="https://youtube.com/watch?v=..."
-                className="w-full px-4 py-3.5 text-sm border border-[#E5E7EB] rounded-xl
-                           focus:outline-none focus:ring-2 focus:ring-[#1a73e8] focus:border-transparent
-                           bg-white text-[#111827] placeholder:text-[#9CA3AF]
-                           shadow-sm hover:shadow-md transition-shadow"
-                disabled={loading}
-              />
-            </div>
+        {/* Sub */}
+        <p
+          className="animate-fade-in-up mt-5 text-base sm:text-lg text-[#6B7280] text-center max-w-md text-balance leading-relaxed"
+          style={{ animationDelay: "120ms" }}
+        >
+          Paste a YouTube URL. Get a structured outline, smart summaries,
+          flashcards, and AI search — in under 60 seconds.
+        </p>
 
-            {error && (
-              <p className="text-sm text-red-500 text-left animate-fade-in">{error}</p>
-            )}
-
+        {/* ── Search bar ──────────────────────────────────────────────────── */}
+        <form
+          onSubmit={handleSubmit}
+          className="animate-fade-in-up w-full max-w-lg mt-10 space-y-3"
+          style={{ animationDelay: "180ms" }}
+        >
+          {/* Pill input + button */}
+          <div className={`flex items-center gap-2 bg-white rounded-2xl shadow-md px-3 py-2
+                           border transition-all duration-200
+                           ${error ? "border-red-300 ring-2 ring-red-100" : "border-[#E5E7EB] focus-within:border-[#1a73e8] focus-within:ring-2 focus-within:ring-[#1a73e8]/20 focus-within:shadow-lg"}`}>
+            <Youtube className="w-5 h-5 text-[#FF0000] flex-shrink-0 ml-1" />
+            <input
+              value={url}
+              onChange={(e) => { setUrl(e.target.value); setError(null); }}
+              placeholder="Paste a YouTube lecture URL…"
+              className="flex-1 py-2 px-2 text-sm bg-transparent focus:outline-none
+                         text-[#111827] placeholder:text-[#9CA3AF] min-w-0"
+              disabled={loading}
+            />
             <button
               type="submit"
               disabled={!url.trim() || loading}
-              className="w-full flex items-center justify-center gap-2 py-3 px-6
-                         bg-[#1a73e8] hover:bg-[#ec4899] text-white text-sm font-medium
-                         rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed
-                         shadow-sm hover:shadow-lg active:scale-[0.98]"
+              className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5
+                         bg-[#1a73e8] hover:bg-[#ec4899] text-white text-xs font-semibold
+                         rounded-xl transition-all duration-200 disabled:opacity-40
+                         disabled:cursor-not-allowed active:scale-95 shadow-sm hover:shadow-md
+                         whitespace-nowrap"
             >
               {loading ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Starting analysis…
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span className="hidden sm:inline">Analyzing…</span>
                 </>
               ) : (
                 <>
-                  Analyze lecture
-                  <ArrowRight className="w-4 h-4" />
+                  Analyze
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </>
               )}
             </button>
-          </form>
+          </div>
+
+          {error && (
+            <p className="text-xs text-red-500 pl-2 animate-fade-in">{error}</p>
+          )}
 
           {/* Example */}
-          <div>
-            <p className="text-xs text-[#9CA3AF] mb-2">Try an example</p>
+          <p className="text-center text-[11px] text-[#9CA3AF]">
+            Try an example:{" "}
             <button
+              type="button"
               onClick={() => setUrl("https://www.youtube.com/watch?v=aircAruvnKk")}
-              className="text-xs text-[#1a73e8] hover:underline"
+              className="text-[#1a73e8] hover:underline"
             >
-              3Blue1Brown — But what is a neural network? →
+              3Blue1Brown — But what is a neural network?
             </button>
-          </div>
-        </div>
+          </p>
+        </form>
 
-        {/* ── Feature cards ───────────────────────────────────────────────── */}
-        <div className="relative mt-16 w-full max-w-2xl grid grid-cols-2 sm:grid-cols-4 gap-3 animate-slide-up">
-          {FEATURES.map(({ icon: Icon, label, detail, bg, fg }, i) => (
-            <div
-              key={label}
-              className="flex flex-col items-center text-center gap-2.5 p-4 rounded-xl
-                         border border-[#F3F4F6] bg-white/80 backdrop-blur-sm
-                         hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-default"
-              style={{ animationDelay: `${i * 60}ms` }}
-            >
-              <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center`}>
-                <Icon className={`w-4 h-4 ${fg}`} />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-[#111827]">{label}</p>
-                <p className="text-[11px] text-[#9CA3AF] mt-0.5 leading-relaxed">{detail}</p>
-              </div>
-            </div>
+        {/* ── Step hints ────────────────────────────────────────────────── */}
+        <div
+          className="animate-fade-in-up flex items-center gap-3 mt-8 text-[11px] text-[#9CA3AF]"
+          style={{ animationDelay: "240ms" }}
+        >
+          {["Paste URL", "Claude reads the lecture", "Study materials ready"].map((step, i) => (
+            <span key={step} className="flex items-center gap-3">
+              <span className="flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full border border-[#E5E7EB] bg-white flex items-center justify-center text-[9px] font-bold text-[#1a73e8]">
+                  {i + 1}
+                </span>
+                {step}
+              </span>
+              {i < 2 && <span className="text-[#D1D5DB]">→</span>}
+            </span>
           ))}
         </div>
-      </div>
+
+        {/* ── Feature cards ──────────────────────────────────────────────── */}
+        <div
+          className="animate-slide-up w-full max-w-2xl mt-16"
+          style={{ animationDelay: "300ms" }}
+        >
+          <p className="text-center text-[11px] font-semibold uppercase tracking-widest text-[#9CA3AF] mb-5">
+            Everything you need to study smarter
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {FEATURES.map(({ icon: Icon, label, detail, bg, fg }, i) => (
+              <div
+                key={label}
+                className="group flex flex-col items-center text-center gap-3 p-5 rounded-2xl
+                           border border-white/80 bg-white/70 backdrop-blur-sm
+                           hover:shadow-lg hover:-translate-y-1 hover:bg-white
+                           transition-all duration-200 cursor-default"
+                style={{ animationDelay: `${300 + i * 50}ms` }}
+              >
+                <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center
+                                 group-hover:scale-110 transition-transform duration-200`}>
+                  <Icon className={`w-5 h-5 ${fg}`} />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-[#111827]">{label}</p>
+                  <p className="text-[11px] text-[#9CA3AF] mt-1 leading-relaxed">{detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* ── Footer ──────────────────────────────────────────────────────────── */}
-      <footer className="relative text-center py-4 text-[11px] text-[#9CA3AF] border-t border-[#F3F4F6] bg-white/40">
-        Application for The Frontier Internship, powered by Cloudforce.
+      <footer className="relative z-10 text-center py-4 text-[11px] text-[#9CA3AF]
+                         border-t border-[#F3F4F6] bg-white/40 backdrop-blur-sm">
+        Built for The Frontier Internship by Cloudforce · Powered by Claude
       </footer>
     </main>
   );
