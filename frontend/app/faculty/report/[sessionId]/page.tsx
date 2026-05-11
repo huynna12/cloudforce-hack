@@ -96,7 +96,7 @@ export default function FacultyReportPage() {
         {/* Back link — top-left, doesn't block game */}
         <Link
           href="/faculty"
-          className="fixed top-4 left-4 z-20 inline-flex items-center gap-1.5 text-sm
+          className="fixed top-[130px] left-4 z-20 inline-flex items-center gap-1.5 text-sm
                      text-[#6B7280] hover:text-[#111827] transition-colors
                      bg-white/80 backdrop-blur px-3 py-1.5 rounded-lg border border-[#E5E7EB] shadow-sm"
         >
@@ -117,7 +117,7 @@ export default function FacultyReportPage() {
 
         {/* Compact bottom card */}
         {!error && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-sm px-4 animate-fade-in-up">
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-sm px-4 animate-fade-in-up">
             <div className="bg-white/90 backdrop-blur-md border border-[#E5E7EB] rounded-2xl shadow-xl p-4">
               {/* Thumbnail + title */}
               <div className="flex items-center gap-3 mb-3">

@@ -92,7 +92,7 @@ export default function ProcessingView({ progress, metadata, error }: Props) {
     progress.synthesis === "running"  ? "running" : "idle";
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-sm px-4 animate-fade-in-up">
+    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-sm px-4 animate-fade-in-up">
       <div className="bg-white/90 backdrop-blur-md border border-[#E5E7EB] rounded-2xl shadow-xl p-4">
 
         {/* Top row: thumbnail + title */}

@@ -177,7 +177,7 @@ export default function StudyPage() {
         {/* Back link — top-left, doesn't block game */}
         <Link
           href="/"
-          className="fixed top-4 left-4 z-20 inline-flex items-center gap-1.5 text-sm
+          className="fixed top-[130px] left-4 z-20 inline-flex items-center gap-1.5 text-sm
                      text-[#6B7280] hover:text-[#111827] transition-colors
                      bg-white/80 backdrop-blur px-3 py-1.5 rounded-lg border border-[#E5E7EB] shadow-sm"
         >
