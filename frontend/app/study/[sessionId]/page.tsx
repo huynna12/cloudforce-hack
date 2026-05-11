@@ -174,16 +174,22 @@ export default function StudyPage() {
     return (
       <div className="min-h-screen bg-[#FAFAFA] relative">
         <FleeingParticles />
-        {/* Back link — top-left, doesn't block game */}
-        <Link
-          href="/"
-          className="fixed top-[130px] left-4 z-20 inline-flex items-center gap-1.5 text-sm
-                     text-[#6B7280] hover:text-[#111827] transition-colors
-                     bg-white/80 backdrop-blur px-3 py-1.5 rounded-lg border border-[#E5E7EB] shadow-sm"
-        >
-          <ArrowLeft className="w-4 h-4" /> Back
-        </Link>
-        <ProcessingView progress={progress} metadata={metadata} error={error} />
+        {/* Top bar: back left, card centered */}
+        <div className="fixed inset-x-0 top-4 z-20 px-4">
+          <div className="relative flex items-start justify-center">
+            <Link
+              href="/"
+              className="absolute left-0 inline-flex items-center gap-1.5 text-sm
+                         text-[#6B7280] hover:text-[#111827] transition-colors
+                         bg-white/80 backdrop-blur px-3 py-1.5 rounded-lg border border-[#E5E7EB] shadow-sm"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back
+            </Link>
+            <div className="w-full max-w-sm">
+              <ProcessingView progress={progress} metadata={metadata} error={error} />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

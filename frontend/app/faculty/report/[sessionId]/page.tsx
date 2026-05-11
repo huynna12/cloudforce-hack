@@ -93,19 +93,9 @@ export default function FacultyReportPage() {
       <div className="min-h-screen bg-[#FAFAFA] relative">
         <FleeingParticles />
 
-        {/* Back link — top-left, doesn't block game */}
-        <Link
-          href="/faculty"
-          className="fixed top-[130px] left-4 z-20 inline-flex items-center gap-1.5 text-sm
-                     text-[#6B7280] hover:text-[#111827] transition-colors
-                     bg-white/80 backdrop-blur px-3 py-1.5 rounded-lg border border-[#E5E7EB] shadow-sm"
-        >
-          <ArrowLeft className="w-4 h-4" /> Back
-        </Link>
-
         {/* Error */}
         {error && (
-          <div className="fixed inset-0 flex items-center justify-center px-4 z-10">
+          <div className="fixed inset-0 flex items-center justify-center px-4 z-20">
             <div className="flex flex-col items-center gap-4 text-center max-w-sm animate-fade-in">
               <div className="w-12 h-12 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-xl">⚠️</div>
               <p className="font-medium text-[#111827]">Something went wrong</p>
@@ -115,9 +105,19 @@ export default function FacultyReportPage() {
           </div>
         )}
 
-        {/* Compact bottom card */}
+        {/* Top bar: back left, card centered */}
         {!error && (
-          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-sm px-4 animate-fade-in-up">
+          <div className="fixed inset-x-0 top-4 z-20 px-4">
+            <div className="relative flex items-start justify-center">
+              <Link
+                href="/faculty"
+                className="absolute left-0 inline-flex items-center gap-1.5 text-sm
+                           text-[#6B7280] hover:text-[#111827] transition-colors
+                           bg-white/80 backdrop-blur px-3 py-1.5 rounded-lg border border-[#E5E7EB] shadow-sm"
+              >
+                <ArrowLeft className="w-4 h-4" /> Back
+              </Link>
+              <div className="w-full max-w-sm animate-fade-in-up">
             <div className="bg-white/90 backdrop-blur-md border border-[#E5E7EB] rounded-2xl shadow-xl p-4">
               {/* Thumbnail + title */}
               <div className="flex items-center gap-3 mb-3">
@@ -175,6 +175,8 @@ export default function FacultyReportPage() {
                 })}
               </div>
               <p className="text-[10px] text-[#9CA3AF] mt-3">Usually ready in 30–60 seconds</p>
+            </div>
+          </div>
             </div>
           </div>
         )}
