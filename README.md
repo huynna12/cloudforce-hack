@@ -1,3 +1,6 @@
+## Live at: 
+[https://cloudforce-hack.vercel.app/](https://cloudforce-hack.vercel.app/)
+
 **Turn any YouTube lecture into a complete study environment — or a private faculty audit — in under 60 seconds.**
 
 Built for [The Frontier Internship](https://www.cloudforcehq.com/) — Cloudforce Hackathon, May 2025.
@@ -33,7 +36,7 @@ The report is explicitly for the faculty member only — this is a tool for self
 
 ## Agent Architecture
 
-Heidi runs a multi-agent backend with five distinct agents, each with a genuinely different job:
+The app runs a multi-agent backend with five distinct agents, each with a genuinely different job:
 
 ```
 YouTube URL
@@ -90,7 +93,7 @@ YouTube URL
 
 ## Validation Layers
 
-Heidi rejects invalid input before any AI processing begins:
+The app rejects invalid input before any AI processing begins:
 
 - Non-YouTube URLs caught on the frontend before any API call
 - YouTube Shorts, private videos, age-restricted videos → clear error on the homepage
@@ -144,8 +147,8 @@ Open [http://localhost:3000](http://localhost:3000).
 ```bash
 cd backend
 fly auth login
-fly volumes create heidi_data --region iad --size 1
-fly secrets set ANTHROPIC_API_KEY=sk-ant-...
+fly volumes create <your-app-name> --region iad --size 1
+fly secrets set ANTHROPIC_API_KEY=<your-api-key>
 fly deploy
 ```
 
@@ -154,5 +157,5 @@ fly deploy
 1. Push to GitHub
 2. Import repo on [vercel.com](https://vercel.com)
 3. Set root directory to `frontend`
-4. Add environment variable: `NEXT_PUBLIC_API_URL=https://heidi-be.fly.dev`
+4. Add environment variable: `NEXT_PUBLIC_API_URL=https://<your-app-name>.fly.dev`
 5. Deploy
