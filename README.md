@@ -51,11 +51,10 @@ YouTube URL
 │  SynthesisAgent─┘                                │
 │  ── outline, summaries, flashcards, key terms    │
 │                                                  │
-│  SearchAgent      (on demand, per query)         │
-│  ── semantic search over transcript chunks       │
-│                                                  │
-│  TutorAgent       (on demand, per question)      │
-│  ── AI explanation grounded in lecture content   │
+│  AskAgent         (on demand, per question)       │
+│  ── runs semantic search + AI explanation in     │
+│     parallel; returns grounded answer + source   │
+│     moments with clickable timestamps            │
 │                                                  │
 │  FacultyAgent     (on demand, faculty route)     │
 │  ── pedagogical audit → structured report        │
