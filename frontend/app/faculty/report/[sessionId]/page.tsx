@@ -9,6 +9,7 @@ import { createFacultyEventSource } from "@/lib/api";
 import { VideoPlayerProvider } from "@/contexts/VideoPlayerContext";
 import VideoPlayer from "@/components/VideoPlayer";
 import AuditReportView from "@/components/AuditReport";
+import FleeingParticles from "@/components/FleeingParticles";
 import clsx from "clsx";
 
 type StepStatus = "idle" | "running" | "complete";
@@ -89,8 +90,9 @@ export default function FacultyReportPage() {
   // ── Processing state ──────────────────────────────────────────────────────
   if (!isComplete) {
     return (
-      <div className="min-h-screen bg-[#FAFAFA]">
-        <div className="max-w-lg mx-auto px-4">
+      <div className="min-h-screen bg-[#FAFAFA] relative">
+        <FleeingParticles />
+        <div className="max-w-lg mx-auto px-4 relative" style={{ zIndex: 1 }}>
           <div className="py-4">
             <Link href="/faculty" className="inline-flex items-center gap-1.5 text-sm text-[#6B7280] hover:text-[#111827]">
               <ArrowLeft className="w-4 h-4" /> Back

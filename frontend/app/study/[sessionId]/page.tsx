@@ -18,6 +18,7 @@ import { createEventSource, translateContent } from "@/lib/api";
 import { VideoPlayerProvider } from "@/contexts/VideoPlayerContext";
 import VideoPlayer from "@/components/VideoPlayer";
 import ProcessingView from "@/components/ProcessingView";
+import FleeingParticles from "@/components/FleeingParticles";
 import OutlinePanel from "@/components/OutlinePanel";
 import SummaryPanel from "@/components/SummaryPanel";
 import FlashcardsPanel from "@/components/FlashcardsPanel";
@@ -156,8 +157,9 @@ export default function StudyPage() {
   // ── Loading state ───────────────────────────────────────────────────────────
   if (!isComplete) {
     return (
-      <div className="min-h-screen bg-[#FAFAFA] px-4">
-        <div className="max-w-lg mx-auto">
+      <div className="min-h-screen bg-[#FAFAFA] px-4 relative">
+        <FleeingParticles />
+        <div className="max-w-lg mx-auto relative" style={{ zIndex: 1 }}>
           <div className="py-4">
             <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-[#6B7280] hover:text-[#111827] transition-colors">
               <ArrowLeft className="w-4 h-4" /> Back
