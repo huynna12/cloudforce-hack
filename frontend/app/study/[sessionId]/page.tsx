@@ -175,8 +175,21 @@ export default function StudyPage() {
     return (
       <div className="min-h-screen bg-[#FAFAFA] relative">
         <FleeingParticles onIntroDone={() => setIntroComplete(true)} />
-        {/* Top bar: back left, card centered — only shown after intro */}
-        {introComplete && (
+
+        {/* Error — always shown immediately, never gated behind intro */}
+        {error && (
+          <div className="fixed inset-0 flex items-center justify-center px-4 z-20 animate-fade-in">
+            <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+              <div className="w-12 h-12 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-xl">⚠️</div>
+              <p className="font-medium text-[#111827]">Couldn't process this video</p>
+              <p className="text-sm text-[#6B7280]">{error}</p>
+              <Link href="/" className="text-sm text-[#1a73e8] hover:underline">Try a different video →</Link>
+            </div>
+          </div>
+        )}
+
+        {/* Top bar: back left, card centered — only shown after intro and no error */}
+        {introComplete && !error && (
           <div className="fixed inset-x-0 top-4 z-20 px-4 animate-fade-in">
             <div className="relative flex items-start justify-center">
               <Link
@@ -188,7 +201,7 @@ export default function StudyPage() {
                 <ArrowLeft className="w-4 h-4" /> Back
               </Link>
               <div className="w-full max-w-sm">
-                <ProcessingView progress={progress} metadata={metadata} error={error} />
+                <ProcessingView progress={progress} metadata={metadata} error={null} />
               </div>
             </div>
           </div>

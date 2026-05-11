@@ -94,8 +94,8 @@ export default function FacultyReportPage() {
       <div className="min-h-screen bg-[#FAFAFA] relative">
         <FleeingParticles onIntroDone={() => setIntroComplete(true)} />
 
-        {/* Error — always visible, no intro gate */}
-        {error && introComplete && (
+        {/* Error — always visible, never gated behind intro */}
+        {error && (
           <div className="fixed inset-0 flex items-center justify-center px-4 z-20 animate-fade-in">
             <div className="flex flex-col items-center gap-4 text-center max-w-sm">
               <div className="w-12 h-12 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-xl">⚠️</div>
