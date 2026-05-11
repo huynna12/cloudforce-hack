@@ -67,25 +67,34 @@ export default function FacultyPage() {
         className="pointer-events-none absolute inset-0 z-0"
         style={{
           backgroundImage: "radial-gradient(circle, #cbd5e1 1px, transparent 1px)",
-          backgroundSize: "28px 28px",
-          opacity: 0.55,
+          backgroundSize: "32px 32px",
+          opacity: 0.4,
         }}
       />
 
-      {/* Pink blob — top right */}
+      {/* Pink blob — top right, wide ellipse */}
       <div
-        className="pointer-events-none absolute -top-48 -right-48 w-[760px] h-[760px] rounded-full z-0"
+        className="pointer-events-none absolute -top-40 -right-40 w-[820px] h-[580px] z-0"
         style={{
-          background: "radial-gradient(circle, rgba(236,72,153,0.28) 0%, rgba(219,39,119,0.2) 40%, transparent 60%)",
-          filter: "blur(72px)",
+          background: "radial-gradient(ellipse, rgba(236,72,153,0.3) 0%, rgba(219,39,119,0.2) 40%, transparent 60%)",
+          filter: "blur(80px)",
         }}
       />
 
-      {/* Blue blob — bottom left */}
+      {/* Blue blob — bottom left, tall ellipse */}
       <div
-        className="pointer-events-none absolute -bottom-48 -left-48 w-[700px] h-[700px] rounded-full z-0"
+        className="pointer-events-none absolute -bottom-40 -left-40 w-[580px] h-[780px] z-0"
         style={{
-          background: "radial-gradient(circle, rgba(59,130,246,0.28) 0%, rgba(26,115,232,0.2) 40%, transparent 60%)",
+          background: "radial-gradient(ellipse, rgba(59,130,246,0.3) 0%, rgba(26,115,232,0.2) 40%, transparent 60%)",
+          filter: "blur(80px)",
+        }}
+      />
+
+      {/* Lavender bridge — center */}
+      <div
+        className="pointer-events-none absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] z-0"
+        style={{
+          background: "radial-gradient(ellipse, rgba(139,92,246,0.13) 0%, transparent 65%)",
           filter: "blur(72px)",
         }}
       />
