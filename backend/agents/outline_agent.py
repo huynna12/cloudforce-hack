@@ -37,7 +37,7 @@ class OutlineAgent:
     async def run(self, transcript_text: str, video_title: str) -> list:
         response = await self.client.messages.create(
             model="claude-sonnet-4-5",
-            max_tokens=3000,
+            max_tokens=6000,
             system=[
                 {
                     "type": "text",
