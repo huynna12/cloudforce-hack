@@ -74,9 +74,9 @@ export default function HomePage() {
 
       {/* Blue blob — top right */}
       <div
-        className="pointer-events-none absolute -top-48 -right-48 w-[640px] h-[640px] rounded-full z-0"
+        className="pointer-events-none absolute -top-48 -right-48 w-[760px] h-[760px] rounded-full z-0"
         style={{
-          background: "radial-gradient(circle, rgba(26,115,232,0.18) 0%, transparent 65%)",
+          background: "radial-gradient(circle, rgba(59,130,246,0.28) 0%, rgba(26,115,232,0.18) 40%, transparent 68%)",
           filter: "blur(72px)",
         }}
       />
