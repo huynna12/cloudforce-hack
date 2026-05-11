@@ -68,7 +68,7 @@ export default function FacultyPage() {
         style={{
           backgroundImage: "radial-gradient(circle, #cbd5e1 1px, transparent 1px)",
           backgroundSize: "32px 32px",
-          opacity: 0.4,
+          opacity: 0.55,
         }}
       />
 
