@@ -119,7 +119,7 @@ export default function HomePage() {
           >
             For instructors
           </Link>
-          <span className="hidden sm:block text-xs text-[#9CA3AF]">Powered by Cloudforce</span>
+          <span className="hidden sm:block text-xs text-[#9CA3AF]">Powered by Claude</span>
         </div>
       </nav>
 
@@ -150,8 +150,7 @@ export default function HomePage() {
           className="animate-fade-in-up mt-5 text-base sm:text-lg text-[#6B7280] text-center max-w-md text-balance leading-relaxed"
           style={{ animationDelay: "120ms" }}
         >
-          Paste a YouTube URL. Get a structured outline, smart summaries,
-          flashcards, and AI search — in under 60 seconds.
+          Get a structured outline, smart summaries, flashcards, and AI search — in about 60 seconds.
         </p>
 
         {/* ── Search bar ──────────────────────────────────────────────────── */}
