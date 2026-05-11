@@ -11,6 +11,7 @@ from pydantic_settings import BaseSettings
 from agents.orchestrator import Orchestrator
 from agents.transcript_agent import TranscriptAgent
 from agents.audit_agent import AuditAgent
+from utils.youtube import extract_video_id, get_video_metadata
 
 
 def _friendly_error(exc: Exception) -> str:
@@ -113,8 +114,10 @@ def health():
 
 @app.post("/api/process")
 async def start_processing(request: ProcessRequest):
-    """Create a session and kick off the agent pipeline. Returns session_id immediately."""
+    """Validate the video synchronously, then create a session. Errors return 400 before any navigation."""
     try:
+        video_id = extract_video_id(request.youtube_url)
+        await get_video_metadata(video_id)   # raises ValueError for music, private, live, etc.
         session_id = orchestrator.create_session(request.youtube_url)
         return {"session_id": session_id}
     except ValueError as e:
@@ -170,6 +173,12 @@ async def tutor(session_id: str, request: TutorRequest):
 
 @app.post("/api/faculty/process")
 async def faculty_process(request: ProcessRequest):
+    try:
+        video_id = extract_video_id(request.youtube_url)
+        await get_video_metadata(video_id)   # raises ValueError for music, private, live, etc.
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     session_id = str(uuid.uuid4())
     _faculty_sessions[session_id] = {
         "status": "processing", "metadata": None, "report": None, "error": None,
