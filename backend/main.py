@@ -49,12 +49,23 @@ _audit_agent = AuditAgent(settings.anthropic_api_key)
 _faculty_sessions: dict[str, dict] = {}
 _faculty_queues: dict[str, asyncio.Queue] = {}
 
-async def _run_faculty_pipeline(session_id: str, youtube_url: str) -> None:
+async def _run_faculty_pipeline(
+    session_id: str,
+    youtube_url: str,
+    metadata: dict,
+    transcript: list,
+    transcript_text: str,
+) -> None:
     session = _faculty_sessions[session_id]
     queue = _faculty_queues[session_id]
     try:
         await queue.put({"type": "progress", "step": "transcript", "status": "running"})
-        transcript_data = await _transcript_agent.run(youtube_url)
+        transcript_data = await _transcript_agent.run(
+            youtube_url,
+            metadata=metadata,
+            transcript=transcript,
+            transcript_text=transcript_text,
+        )
         session["metadata"] = transcript_data["metadata"]
         await queue.put({
             "type": "progress", "step": "transcript", "status": "complete",
@@ -161,7 +172,12 @@ async def search(session_id: str, request: SearchRequest):
 async def faculty_process(request: ProcessRequest):
     try:
         video_id = extract_video_id(request.youtube_url)
-        await get_video_metadata(video_id)   # raises ValueError for music, private, live, etc.
+        metadata, transcript = await asyncio.gather(
+            get_video_metadata(video_id),
+            get_transcript(video_id),
+        )
+        validate_duration(transcript)
+        transcript_text = validate_content(transcript)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -170,7 +186,7 @@ async def faculty_process(request: ProcessRequest):
         "status": "processing", "metadata": None, "report": None, "error": None,
     }
     _faculty_queues[session_id] = asyncio.Queue()
-    asyncio.create_task(_run_faculty_pipeline(session_id, request.youtube_url))
+    asyncio.create_task(_run_faculty_pipeline(session_id, request.youtube_url, metadata, transcript, transcript_text))
     return {"session_id": session_id}
 
 
