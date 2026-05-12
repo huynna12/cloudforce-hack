@@ -15,12 +15,6 @@ interface Props {
   sessionId: string;
 }
 
-const SUGGESTIONS = [
-  "What is the main idea of this lecture?",
-  "Can you give me an example from the lecture?",
-  "What's the most important formula covered?",
-];
-
 export default function AskPanel({ sessionId }: Props) {
   const { seekTo } = useVideoPlayer();
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -73,21 +67,8 @@ export default function AskPanel({ sessionId }: Props) {
             <div>
               <p className="text-sm font-medium text-[#111827]">Search this lecture</p>
               <p className="text-xs text-[#6B7280] mt-1 max-w-xs">
-                Ask any question and find the exact moments in the video that cover it.
+                Type any question and find the exact moments in the video that cover it.
               </p>
-            </div>
-            <div className="flex flex-col gap-1.5 w-full">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => send(s)}
-                  className="text-left text-xs text-[#374151] bg-white border border-[#E5E7EB]
-                             rounded-lg px-3 py-2.5 hover:border-[#1a73e8] hover:text-[#1a73e8]
-                             transition-colors"
-                >
-                  {s}
-                </button>
-              ))}
             </div>
           </div>
         )}

@@ -1,3 +1,4 @@
+import re
 import anthropic
 from utils.json_utils import parse_llm_json
 
@@ -25,6 +26,50 @@ Return JSON in exactly this format:
     }}
   ]
 }}"""
+
+
+def _parse_transcript_segments(transcript_text: str) -> list[tuple[float, str]]:
+    """Parse [MM:SS] lines into (seconds, text) pairs."""
+    segments = []
+    for line in transcript_text.split("\n"):
+        m = re.match(r"\[(\d+):(\d+)\]\s+(.*)", line)
+        if m:
+            ts = int(m.group(1)) * 60 + int(m.group(2))
+            segments.append((float(ts), m.group(3)))
+    return segments
+
+
+def _correct_timestamp(text: str, segments: list[tuple[float, str]]) -> float | None:
+    """
+    Find the transcript segment whose text best matches the returned passage.
+    Uses word-overlap scoring over a sliding window of 3 lines.
+    Returns the corrected timestamp, or None if no confident match found.
+    """
+    if not text or not segments:
+        return None
+
+    query_words = set(re.sub(r"[^\w\s]", "", text.lower()).split())
+    if not query_words:
+        return None
+
+    best_score = 0.35  # minimum overlap ratio to accept
+    best_ts = None
+
+    for i, (ts, _) in enumerate(segments):
+        window_text = " ".join(
+            re.sub(r"[^\w\s]", "", seg[1].lower())
+            for seg in segments[i: i + 3]
+        )
+        window_words = set(window_text.split())
+        if not window_words:
+            continue
+
+        overlap = len(query_words & window_words) / len(query_words)
+        if overlap > best_score:
+            best_score = overlap
+            best_ts = ts
+
+    return best_ts
 
 
 class SearchAgent:
@@ -63,4 +108,13 @@ class SearchAgent:
         )
 
         data = parse_llm_json(response.content[0].text)
-        return data.get("results", [])
+        results = data.get("results", [])
+
+        # Verify and correct timestamps by matching returned text against the real transcript
+        segments = _parse_transcript_segments(transcript_text)
+        for result in results:
+            corrected = _correct_timestamp(result.get("text", ""), segments)
+            if corrected is not None:
+                result["timestamp"] = corrected
+
+        return results
