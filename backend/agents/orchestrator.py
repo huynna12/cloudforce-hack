@@ -11,7 +11,6 @@ from agents.outline_agent import OutlineAgent
 from agents.synthesis_agent import SynthesisAgent
 from agents.search_agent import SearchAgent
 from agents.translation_agent import TranslationAgent
-from agents.tutor_agent import TutorAgent
 
 _SESSIONS_FILE = os.environ.get("SESSIONS_FILE", "sessions_store.json")
 
@@ -68,7 +67,6 @@ class Orchestrator:
         self.synthesis_agent = SynthesisAgent(anthropic_api_key)
         self.search_agent = SearchAgent(anthropic_api_key)
         self.translation_agent = TranslationAgent(anthropic_api_key)
-        self.tutor_agent = TutorAgent(anthropic_api_key)
 
         # Restore completed sessions from disk — in-progress ones are gone after restart
         self._sessions: dict[str, dict] = _load_sessions()
@@ -110,15 +108,6 @@ class Orchestrator:
             session["transcript_text"],
             session["metadata"]["title"],
             query,
-        )
-
-    async def tutor(self, session_id: str, question: str, history: list[dict]) -> str:
-        session = self._get_complete_session(session_id)
-        return await self.tutor_agent.answer(
-            session["transcript_text"],
-            session["metadata"]["title"],
-            question,
-            history,
         )
 
     async def translate(self, session_id: str, language: str, content_type: str) -> any:

@@ -1,9 +1,12 @@
-**Live at:** 
-[https://cloudforce-hack.vercel.app/](https://cloudforce-hack.vercel.app/)
+# Heidi
+
+**Live at:** [https://cloudforce-hack.vercel.app/](https://cloudforce-hack.vercel.app/)
 
 ## Overview
 Turn any YouTube lecture into a complete study environment — or a private faculty audit — in around 60 seconds.
 Built for [The Frontier Internship](https://www.cloudforcehq.com/) — Cloudforce Hackathon, May 2025.
+
+---
 
 ## Capabilities
 
@@ -17,7 +20,7 @@ A college student pastes a lecture URL. Heidi turns it into a complete personali
 | **Summaries** | Three depths — 90-second, 5-minute, and full detail |
 | **Flashcards** | Auto-generated Q&A cards with source citations and formula rendering |
 | **Key Terms** | Definitions extracted from the lecture, categorized and filterable |
-| **Ask** | Ask any question — get an AI explanation + the exact moments in the video that address it |
+| **Search** | Type any question — find the exact moments in the video that address it |
 | **Translation** | All study materials translated to 11 languages with one click |
 
 ### 🔍 Capability 2 — Faculty *(implemented)*
@@ -30,50 +33,56 @@ A faculty member pastes their own lecture URL. Heidi audits it across pedagogica
 
 The report is explicitly for the faculty member only — this is a tool for self-improvement, not surveillance.
 
+---
 
 ## Agent Architecture
 
 The app runs a multi-agent backend with five distinct agents, each with a genuinely different job:
 
 ```
-YouTube URL
-    │
-    ▼
-┌──────────────────────────────────────────────────┐
-│                  FastAPI Backend                  │
-│                                                  │
-│  TranscriptAgent                                 │
-│  ── fetches transcript, validates content,       │
-│     rejects music/shorts/private/too-short       │
-│                        │                         │
-│                        ▼                         │
-│  OutlineAgent ──┐  (parallel via asyncio.gather) │
-│  SynthesisAgent─┘                                │
-│  ── outline, summaries, flashcards, key terms    │
-│                                                  │
-│  AskAgent         (on demand, per question)       │
-│  ── runs semantic search + AI explanation in     │
-│     parallel; returns grounded answer + source   │
-│     moments with clickable timestamps            │
-│                                                  │
-│  FacultyAgent     (on demand, faculty route)     │
-│  ── pedagogical audit → structured report        │
-└──────────────────────────────────────────────────┘
-    │
-    ▼  Server-Sent Events (SSE) stream
+User pastes YouTube URL
+         │
+         ▼
 ┌─────────────────────┐
-│  Next.js Frontend   │
-│  (Vercel)           │
-└─────────────────────┘
+│  Next.js Frontend   │  ── POST youtube_url ──────────────────────────┐
+│  (Vercel)           │  ◄─ SSE stream (live agent progress) ──────────┤
+└─────────────────────┘  ◄─ JSON response (study materials / report) ──┘
+                                             │
+                                             ▼
+                         ┌──────────────────────────────────────────────────┐
+                         │              FastAPI Backend (Fly.io)             │
+                         │                                                  │
+                         │  TranscriptAgent                                 │
+                         │  ── fetches transcript + metadata from YouTube   │
+                         │  ── rejects music, Shorts, private, too-short    │
+                         │                        │                         │
+                         │                        ▼                         │
+                         │  OutlineAgent ──┐  (parallel via asyncio.gather) │
+                         │  SynthesisAgent─┘                                │
+                         │  ── outline, summaries (3 depths),               │
+                         │     flashcards, key terms                        │
+                         │                                                  │
+                         │  SearchAgent       (on demand, per query)        │
+                         │  ── semantic search over transcript               │
+                         │  ── returns timestamped source moments           │
+                         │                                                  │
+                         │  TranslationAgent  (on demand, per language)     │
+                         │  ── translates study materials to 11 languages   │
+                         │                                                  │
+                         │  AuditAgent        (on demand, faculty route)    │
+                         │  ── pedagogical audit across 4 dimensions        │
+                         │  ── private report with timestamped fixes        │
+                         └──────────────────────────────────────────────────┘
 ```
 
 **Key techniques**
 - Parallel pipeline — `OutlineAgent` and `SynthesisAgent` run simultaneously via `asyncio.gather`, cutting latency roughly in half
 - Prompt caching (`cache_control: ephemeral`) on transcripts — the full transcript is cached on Claude's side so every subsequent agent call skips re-ingestion
 - Server-sent events (SSE) for real-time progress streaming — users see live status as each agent completes
-- Session persistence to disk — sessions survive backend restarts so Ask and Search remain functional across the judging window
+- Session persistence to disk — sessions survive backend restarts so Search remains functional across the judging window
 - Pre-fetched metadata — YouTube metadata is validated once on `/api/process`, then passed through the pipeline to avoid duplicate API calls
 
+---
 
 ## Tech Stack
 
@@ -82,8 +91,10 @@ YouTube URL
 **Backend** — FastAPI, Python 3.11, deployed on Fly.io (always-on, 1 GB RAM, persistent volume)
 
 **AI** — Anthropic Claude
-- `claude-sonnet-4-5` — outline, summaries, flashcards, key terms, tutor, faculty audit
-- `claude-haiku-4-5` — semantic search (speed-optimized)
+- `claude-sonnet-4-5` — outline, summaries, flashcards, key terms, faculty audit
+- `claude-haiku-4-5` — semantic search and translation (speed-optimized)
+
+---
 
 ## Validation Layers
 
@@ -94,6 +105,8 @@ The app rejects invalid input before any AI processing begins:
 - Music videos detected via YouTube category API + title heuristics + transcript noise ratio
 - Videos under 2 minutes or fewer than 80 words of speech → rejected
 - All errors surface on the homepage — users never navigate to a broken state
+
+---
 
 ## Local Development
 
@@ -129,6 +142,8 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+---
 
 ## Deployment
 

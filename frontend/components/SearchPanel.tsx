@@ -1,142 +1,202 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Search, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Send, Loader2, Search } from "lucide-react";
 import { SearchResult, secondsToDisplay } from "@/lib/types";
 import { searchLecture } from "@/lib/api";
 import { useVideoPlayer } from "@/contexts/VideoPlayerContext";
+
+interface Turn {
+  question: string;
+  sources: SearchResult[];
+}
 
 interface Props {
   sessionId: string;
 }
 
-export default function SearchPanel({ sessionId }: Props) {
+const SUGGESTIONS = [
+  "What is the main idea of this lecture?",
+  "Can you give me an example from the lecture?",
+  "What's the most important formula covered?",
+];
+
+export default function AskPanel({ sessionId }: Props) {
   const { seekTo } = useVideoPlayer();
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searched, setSearched] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSearch = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!query.trim() || loading) return;
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [turns, loading]);
 
+  const send = async (question: string) => {
+    if (!question.trim() || loading) return;
     setLoading(true);
     setError(null);
+    setInput("");
 
     try {
-      const data = await searchLecture(sessionId, query.trim());
-      setResults(data.results);
-      setSearched(true);
+      const res = await searchLecture(sessionId, question.trim());
+      setTurns((prev) => [...prev, { question: question.trim(), sources: res.results }]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Search failed");
+      const msg = err instanceof Error ? err.message : "Something went wrong";
+      setError(msg);
     } finally {
       setLoading(false);
+      inputRef.current?.focus();
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleSearch();
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send(input);
+    }
   };
 
   return (
-    <div className="animate-fade-in space-y-4">
-      {/* Search bar */}
-      <form onSubmit={handleSearch} className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF]" />
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask anything about this lecture…"
-          className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-[#E5E7EB] rounded-lg
-                     focus:outline-none focus:ring-2 focus:ring-[#1a73e8] focus:border-transparent
-                     placeholder:text-[#9CA3AF] text-[#111827] transition-shadow"
-        />
-        {loading && (
-          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#1a73e8] animate-spin" />
-        )}
-      </form>
-
-      {/* Error */}
-      {error && (
-        <div className="px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-lg">
-          <p className="text-xs text-amber-700">
-            {error.toLowerCase().includes("session") || error.toLowerCase().includes("not found")
-              ? "This session has expired — the study materials are cached but Search needs a live connection."
-              : error}
-          </p>
-          {(error.toLowerCase().includes("session") || error.toLowerCase().includes("not found")) && (
-            <a href="/" className="text-xs text-amber-700 font-medium underline mt-1 inline-block">
-              Reprocess the video →
-            </a>
-          )}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!searched && !loading && (
-        <div className="text-center py-8">
-          <p className="text-sm text-[#9CA3AF]">
-            Type any question and find the exact moment in the lecture that answers it.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2 justify-center">
-            {[
-              "What is the main argument?",
-              "How does this work?",
-              "What are the key steps?",
-            ].map((suggestion) => (
-              <button
-                key={suggestion}
-                onClick={() => {
-                  setQuery(suggestion);
-                  setTimeout(() => handleSearch(), 0);
-                }}
-                className="text-xs text-[#1a73e8] bg-[#e8f0fe] px-3 py-1.5 rounded-full hover:bg-[#aecbfa] transition-colors"
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
+    <div className="flex flex-col animate-fade-in" style={{ minHeight: "480px" }}>
       {/* Results */}
-      {searched && results.length === 0 && !loading && (
-        <p className="text-sm text-[#6B7280] text-center py-4">
-          No relevant moments found for that query.
-        </p>
-      )}
+      <div className="flex-1 overflow-y-auto space-y-5 pr-1 mb-4">
 
-      {results.length > 0 && (
-        <div className="space-y-2">
-          {results.map((result, i) => (
-            <div
-              key={i}
-              className="rounded-lg border border-[#E5E7EB] bg-white p-3.5 space-y-2 animate-slide-up"
-              style={{ animationDelay: `${i * 60}ms` }}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs font-medium text-[#1a73e8] leading-relaxed flex-1">
-                  {result.relevance}
-                </p>
-                <button
-                  onClick={() => seekTo(result.timestamp)}
-                  className="flex-shrink-0 text-xs font-mono text-[#1a73e8] bg-[#e8f0fe] px-2 py-1 rounded-md hover:bg-[#aecbfa] transition-colors"
-                >
-                  {secondsToDisplay(result.timestamp)}
-                </button>
-              </div>
-              <p className="text-xs text-[#374151] leading-relaxed border-l-2 border-[#E5E7EB] pl-3 italic">
-                &ldquo;{result.text}&rdquo;
+        {/* Empty state */}
+        {turns.length === 0 && !loading && (
+          <div className="flex flex-col items-center text-center pt-4 gap-4">
+            <div className="w-10 h-10 rounded-xl bg-[#e8f0fe] flex items-center justify-center">
+              <Search className="w-5 h-5 text-[#1a73e8]" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-[#111827]">Search this lecture</p>
+              <p className="text-xs text-[#6B7280] mt-1 max-w-xs">
+                Ask any question and find the exact moments in the video that cover it.
               </p>
             </div>
-          ))}
+            <div className="flex flex-col gap-1.5 w-full">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => send(s)}
+                  className="text-left text-xs text-[#374151] bg-white border border-[#E5E7EB]
+                             rounded-lg px-3 py-2.5 hover:border-[#1a73e8] hover:text-[#1a73e8]
+                             transition-colors"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Turns */}
+        {turns.map((turn, i) => (
+          <div key={i} className="space-y-3 animate-slide-up">
+            {/* Question */}
+            <div className="flex justify-end">
+              <div className="bg-[#1a73e8] text-white text-sm rounded-2xl rounded-tr-sm
+                              px-3.5 py-2.5 max-w-[85%] leading-relaxed">
+                {turn.question}
+              </div>
+            </div>
+
+            {/* Source moments */}
+            <div className="bg-white border border-[#E5E7EB] rounded-2xl rounded-tl-sm px-4 py-3 max-w-[92%]">
+              {turn.sources.length === 0 ? (
+                <p className="text-xs text-[#9CA3AF] italic">No matching moments found in this lecture.</p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-medium text-[#9CA3AF] uppercase tracking-wider">
+                    {turn.sources.length} moment{turn.sources.length !== 1 ? "s" : ""} found
+                  </p>
+                  {turn.sources.map((src, j) => (
+                    <div key={j} className="flex items-start gap-2">
+                      <button
+                        onClick={() => seekTo(src.timestamp)}
+                        className="flex-shrink-0 text-[10px] font-mono text-[#1a73e8] bg-[#e8f0fe]
+                                   px-1.5 py-0.5 rounded hover:bg-[#aecbfa] transition-colors mt-0.5"
+                      >
+                        {secondsToDisplay(src.timestamp)}
+                      </button>
+                      <p className="text-xs text-[#6B7280] italic leading-relaxed line-clamp-2">
+                        &ldquo;{src.text}&rdquo;
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {/* Loading */}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-white border border-[#E5E7EB] rounded-2xl rounded-tl-sm px-4 py-3">
+              <div className="flex gap-1 items-center">
+                <span className="w-1.5 h-1.5 bg-[#9CA3AF] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-1.5 h-1.5 bg-[#9CA3AF] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-1.5 h-1.5 bg-[#9CA3AF] rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-lg">
+            <p className="text-xs text-amber-700">
+              {error.toLowerCase().includes("session") || error.toLowerCase().includes("not found")
+                ? "This session has expired — Ask needs a live connection."
+                : error}
+            </p>
+            {(error.toLowerCase().includes("session") || error.toLowerCase().includes("not found")) && (
+              <a href="/" className="text-xs text-amber-700 font-medium underline mt-1 inline-block">
+                Reprocess the video →
+              </a>
+            )}
+          </div>
+        )}
+
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div className="border-t border-[#E5E7EB] pt-3">
+        <div className="flex gap-2 items-end">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Search this lecture… (Enter to send)"
+            rows={2}
+            disabled={loading}
+            className="flex-1 resize-none text-sm px-3 py-2.5 border border-[#E5E7EB] rounded-xl
+                       focus:outline-none focus:ring-2 focus:ring-[#1a73e8] focus:border-transparent
+                       placeholder:text-[#9CA3AF] text-[#111827] bg-white
+                       disabled:opacity-50 transition-shadow"
+          />
+          <button
+            onClick={() => send(input)}
+            disabled={!input.trim() || loading}
+            className="flex-shrink-0 w-9 h-9 rounded-xl bg-[#1a73e8] hover:bg-[#1557b0]
+                       disabled:opacity-40 disabled:cursor-not-allowed
+                       flex items-center justify-center transition-colors"
+          >
+            {loading
+              ? <Loader2 className="w-4 h-4 text-white animate-spin" />
+              : <Send className="w-4 h-4 text-white" />
+            }
+          </button>
         </div>
-      )}
+        <p className="text-[10px] text-[#9CA3AF] mt-1.5">
+          Click any timestamp to jump to that moment in the video
+        </p>
+      </div>
     </div>
   );
 }

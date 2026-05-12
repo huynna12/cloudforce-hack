@@ -23,7 +23,7 @@ import OutlinePanel from "@/components/OutlinePanel";
 import SummaryPanel from "@/components/SummaryPanel";
 import FlashcardsPanel from "@/components/FlashcardsPanel";
 import KeyTermsPanel from "@/components/KeyTermsPanel";
-import AskPanel from "@/components/AskPanel";
+import SearchPanel from "@/components/SearchPanel";
 import LanguageSelector from "@/components/LanguageSelector";
 import clsx from "clsx";
 
@@ -34,7 +34,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "summary",   label: "Summary" },
   { key: "flashcards", label: "Flashcards" },
   { key: "terms",     label: "Key Terms" },
-  { key: "ask",       label: "Ask" },
+  { key: "ask",       label: "Search" },
 ];
 
 // Ask needs a live backend session — doesn't work from cache
@@ -312,7 +312,7 @@ export default function StudyPage() {
                   ? <KeyTermsPanel keyTerms={displayKeyTerms} />
                   : <p className="text-sm text-[#6B7280] text-center py-10">No key terms found in this lecture.</p>
               )}
-              {activeTab === "ask" && <AskPanel sessionId={sessionId} />}
+              {activeTab === "ask" && <SearchPanel sessionId={sessionId} />}
             </div>
           </div>
         </div>

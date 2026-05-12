@@ -50,22 +50,6 @@ export async function translateContent(
   return res.json();
 }
 
-export async function askTutor(
-  sessionId: string,
-  question: string,
-  history: { question: string; answer: string }[]
-): Promise<{ answer: string }> {
-  const res = await fetch(`${API_BASE}/api/tutor/${sessionId}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question, history }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "Tutor failed" }));
-    throw new Error(err.detail || "Tutor failed");
-  }
-  return res.json();
-}
 
 export async function getSession(sessionId: string) {
   const res = await fetch(`${API_BASE}/api/session/${sessionId}`);

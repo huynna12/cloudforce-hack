@@ -13,7 +13,6 @@ from agents.transcript_agent import TranscriptAgent
 from agents.audit_agent import AuditAgent
 from utils.youtube import extract_video_id, get_video_metadata
 
-
 def _friendly_error(exc: Exception) -> str:
     """Translate raw API / library exceptions into user-readable messages."""
     if isinstance(exc, anthropic_lib.RateLimitError):
@@ -27,14 +26,12 @@ def _friendly_error(exc: Exception) -> str:
 
 class Settings(BaseSettings):
     anthropic_api_key: str
-    gemini_api_key: str = ""
 
     model_config = {"env_file": ".env"}
 
-
 settings = Settings()
 
-app = FastAPI(title="LectureLens API", version="1.0.0")
+app = FastAPI(title="Heidi", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -51,7 +48,6 @@ _transcript_agent = TranscriptAgent()
 _audit_agent = AuditAgent(settings.anthropic_api_key)
 _faculty_sessions: dict[str, dict] = {}
 _faculty_queues: dict[str, asyncio.Queue] = {}
-
 
 async def _run_faculty_pipeline(session_id: str, youtube_url: str) -> None:
     session = _faculty_sessions[session_id]
@@ -84,33 +80,23 @@ async def _run_faculty_pipeline(session_id: str, youtube_url: str) -> None:
     finally:
         await queue.put(None)  # sentinel
 
-
 # ── Request models ──────────────────────────────────────────────────────────
 
 class ProcessRequest(BaseModel):
     youtube_url: str
 
-
 class SearchRequest(BaseModel):
     query: str
 
-
 class TranslateRequest(BaseModel):
     language: str
-    content_type: str  # "outline" | "summaries" | "flashcards"
-
-
-class TutorRequest(BaseModel):
-    question: str
-    history: list[dict] = []
-
+    content_type: str  
 
 # ── Routes ──────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
 
 @app.post("/api/process")
 async def start_processing(request: ProcessRequest):
@@ -141,7 +127,6 @@ async def stream_session(session_id: str):
         },
     )
 
-
 @app.get("/api/session/{session_id}")
 def get_session(session_id: str):
     """Returns current session state (useful for reconnects)."""
@@ -150,21 +135,11 @@ def get_session(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
     return session
 
-
 @app.post("/api/search/{session_id}")
 async def search(session_id: str, request: SearchRequest):
     try:
         results = await orchestrator.search(session_id, request.query)
         return {"results": results}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.post("/api/tutor/{session_id}")
-async def tutor(session_id: str, request: TutorRequest):
-    try:
-        answer = await orchestrator.tutor(session_id, request.question, request.history)
-        return {"answer": answer}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -207,14 +182,12 @@ async def faculty_stream(session_id: str):
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
-
 @app.get("/api/faculty/report/{session_id}")
 def faculty_report(session_id: str):
     session = _faculty_sessions.get(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Faculty session not found")
     return session
-
 
 @app.post("/api/translate/{session_id}")
 async def translate(session_id: str, request: TranslateRequest):
