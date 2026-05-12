@@ -11,22 +11,29 @@ from utils.youtube import (
 class TranscriptAgent:
     """Fetches YouTube transcript and metadata. No LLM — pure data extraction."""
 
-    async def run(self, youtube_url: str, metadata: dict | None = None) -> dict:
+    async def run(
+        self,
+        youtube_url: str,
+        metadata: dict | None = None,
+        transcript: list | None = None,
+        transcript_text: str | None = None,
+    ) -> dict:
         video_id = extract_video_id(youtube_url)
 
-        if metadata is None:
+        if transcript is not None and transcript_text is not None and metadata is not None:
+            # All data pre-fetched and validated by /api/process — skip redundant calls
+            pass
+        elif metadata is None:
             metadata, transcript = await asyncio.gather(
                 get_video_metadata(video_id),
                 get_transcript(video_id),
             )
+            validate_duration(transcript)
+            transcript_text = validate_content(transcript)
         else:
             transcript = await get_transcript(video_id)
-
-        # Reject clips, Shorts, and anything too short to be a lecture
-        validate_duration(transcript)
-        # Reject music videos and audio-only content with no real speech
-        # Returns the formatted transcript text — reuse it to avoid a second format pass
-        transcript_text = validate_content(transcript)
+            validate_duration(transcript)
+            transcript_text = validate_content(transcript)
 
         last = transcript[-1]
         duration = last["start"] + last.get("duration", 0)

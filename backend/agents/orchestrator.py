@@ -77,17 +77,23 @@ class Orchestrator:
     # Public API
     # ------------------------------------------------------------------
 
-    def create_session(self, youtube_url: str, metadata: dict | None = None) -> str:
+    def create_session(
+        self,
+        youtube_url: str,
+        metadata: dict | None = None,
+        transcript: list | None = None,
+        transcript_text: str | None = None,
+    ) -> str:
         session_id = str(uuid.uuid4())
         self._sessions[session_id] = {
             "status": "processing",
-            "metadata": metadata,  # may be pre-fetched to avoid a duplicate network call
-            "transcript_text": None,
+            "metadata": metadata,
+            "transcript_text": transcript_text,
             "study_materials": None,
             "error": None,
         }
         self._queues[session_id] = asyncio.Queue()
-        asyncio.create_task(self._run(session_id, youtube_url, metadata))
+        asyncio.create_task(self._run(session_id, youtube_url, metadata, transcript, transcript_text))
         return session_id
 
     async def stream_events(self, session_id: str) -> AsyncGenerator[dict, None]:
@@ -124,14 +130,26 @@ class Orchestrator:
     # Internal pipeline
     # ------------------------------------------------------------------
 
-    async def _run(self, session_id: str, youtube_url: str, metadata: dict | None = None) -> None:
+    async def _run(
+        self,
+        session_id: str,
+        youtube_url: str,
+        metadata: dict | None = None,
+        transcript: list | None = None,
+        transcript_text: str | None = None,
+    ) -> None:
         session = self._sessions[session_id]
         queue = self._queues[session_id]
 
         try:
             # ── Step 1: Transcript ──────────────────────────────────────
             await queue.put({"type": "progress", "agent": "transcript", "status": "running"})
-            transcript_data = await self.transcript_agent.run(youtube_url, metadata=metadata)
+            transcript_data = await self.transcript_agent.run(
+                youtube_url,
+                metadata=metadata,
+                transcript=transcript,
+                transcript_text=transcript_text,
+            )
             session["metadata"] = transcript_data["metadata"]
             session["transcript_text"] = transcript_data["transcript_text"]
             await queue.put({

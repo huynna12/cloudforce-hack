@@ -11,7 +11,7 @@ from pydantic_settings import BaseSettings
 from agents.orchestrator import Orchestrator
 from agents.transcript_agent import TranscriptAgent
 from agents.audit_agent import AuditAgent
-from utils.youtube import extract_video_id, get_video_metadata
+from utils.youtube import extract_video_id, get_video_metadata, get_transcript, validate_duration, validate_content
 
 def _friendly_error(exc: Exception) -> str:
     """Translate raw API / library exceptions into user-readable messages."""
@@ -103,8 +103,19 @@ async def start_processing(request: ProcessRequest):
     """Validate the video synchronously, then create a session. Errors return 400 before any navigation."""
     try:
         video_id = extract_video_id(request.youtube_url)
-        metadata = await get_video_metadata(video_id)   # raises ValueError for music, private, live, etc.
-        session_id = orchestrator.create_session(request.youtube_url, metadata=metadata)
+        # Fetch metadata + transcript in parallel — validates everything before navigating
+        metadata, transcript = await asyncio.gather(
+            get_video_metadata(video_id),   # raises ValueError for music, private, live, etc.
+            get_transcript(video_id),
+        )
+        validate_duration(transcript)       # raises ValueError if too short
+        transcript_text = validate_content(transcript)  # raises ValueError if music/noise
+        session_id = orchestrator.create_session(
+            request.youtube_url,
+            metadata=metadata,
+            transcript=transcript,
+            transcript_text=transcript_text,
+        )
         return {"session_id": session_id}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
