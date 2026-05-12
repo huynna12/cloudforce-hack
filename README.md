@@ -1,10 +1,8 @@
-# Heidi
-
 **Live at:** [https://cloudforce-hack.vercel.app/](https://cloudforce-hack.vercel.app/)
 
 ## Overview
 Turn any YouTube lecture into a complete study environment — or a private faculty audit — in around 60 seconds.
-Built for [The Frontier Internship](https://www.cloudforcehq.com/) — Cloudforce Hackathon, May 2025.
+Built for [The Frontier Internship]([https://www.cloudforcehq.com/](https://gocloudforce.com/no-resume-required-the-frontier-internship-powered-by-cloudforce/)) — Cloudforce Hackathon, May 2025.
 
 ---
 
