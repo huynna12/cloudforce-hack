@@ -265,12 +265,6 @@ export default function FacultyPage() {
           </div>
         </div>
       </section>
-
-      {/* ── Footer ──────────────────────────────────────────────────────────── */}
-      <footer className="relative z-10 text-center py-4 text-[11px] text-[#9CA3AF]
-                         border-t border-[#F3F4F6] bg-white/40 backdrop-blur-sm">
-        Built for The Frontier Internship by Cloudforce · Powered by Claude
-      </footer>
     </main>
   );
 }
