@@ -1,4 +1,4 @@
-**Live at:** [your-lecture-but-better]((https://your-lecture-but-better.vercel.app/))
+**Live at:** [your-lecture-but-better](https://your-lecture-but-better.vercel.app/)
 
 ## Overview
 Turn any YouTube lecture into a complete study environment — or a private faculty audit — in around 60 seconds.
