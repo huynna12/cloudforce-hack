@@ -2,6 +2,8 @@ import re
 import asyncio
 import httpx
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api.proxies import WebshareProxyConfig
+import os
 
 # Minimum lecture length — anything shorter isn't worth processing
 MIN_DURATION_SECONDS = 120  # 2 minutes
@@ -130,7 +132,12 @@ async def get_transcript(video_id: str) -> list[dict]:
     loop = asyncio.get_event_loop()
 
     def _fetch():
-        api = YouTubeTranscriptApi()
+        api = YouTubeTranscriptApi(
+            proxy_config=WebshareProxyConfig(
+                proxy_username=os.environ["WEBSHARE_PROXY_USERNAME"],
+                proxy_password=os.environ["WEBSHARE_PROXY_PASSWORD"],
+            )
+        )
 
         # Step 1 — discover what captions actually exist
         try:

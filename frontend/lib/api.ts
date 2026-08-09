@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 export async function startProcessing(youtubeUrl: string): Promise<{ session_id: string }> {
   const res = await fetch(`${API_BASE}/api/process`, {
