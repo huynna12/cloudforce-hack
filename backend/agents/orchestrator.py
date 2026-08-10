@@ -4,25 +4,14 @@ import json
 import os
 from typing import AsyncGenerator
 
-import anthropic as anthropic_lib
-
 from agents.transcript_agent import TranscriptAgent
 from agents.outline_agent import OutlineAgent
 from agents.synthesis_agent import SynthesisAgent
 from agents.search_agent import SearchAgent
 from agents.translation_agent import TranslationAgent
+from utils.errors import friendly_error
 
 _SESSIONS_FILE = os.environ.get("SESSIONS_FILE", "sessions_store.json")
-
-
-def _friendly_error(exc: Exception) -> str:
-    if isinstance(exc, anthropic_lib.RateLimitError):
-        return "We're processing too many videos right now — please wait 30 seconds and try again."
-    if isinstance(exc, anthropic_lib.APIConnectionError):
-        return "Couldn't reach the AI service. Check your internet connection and try again."
-    if isinstance(exc, anthropic_lib.APIStatusError):
-        return "The AI service returned an error. Please try again in a moment."
-    return str(exc)
 
 
 def _load_sessions() -> dict:
@@ -37,12 +26,16 @@ def _load_sessions() -> dict:
 
 
 def _save_session(session_id: str, session: dict) -> None:
-    """Persist a single completed session to disk."""
+    """Persist a single completed session to disk (atomically)."""
     try:
         store = _load_sessions()
         store[session_id] = session
-        with open(_SESSIONS_FILE, "w") as f:
+        # Write to a temp file and rename so a crash mid-write can't corrupt the
+        # store — os.replace is atomic on the same filesystem.
+        tmp = f"{_SESSIONS_FILE}.tmp"
+        with open(tmp, "w") as f:
             json.dump(store, f)
+        os.replace(tmp, _SESSIONS_FILE)
     except Exception:
         pass  # never crash the pipeline over a disk write
 
@@ -70,8 +63,14 @@ class Orchestrator:
 
         # Restore completed sessions from disk — in-progress ones are gone after restart
         self._sessions: dict[str, dict] = _load_sessions()
-        # session_id -> asyncio.Queue of SSE events (only live sessions)
-        self._queues: dict[str, asyncio.Queue] = {}
+        # session_id -> list of subscriber queues (live sessions only). A list, not a
+        # single queue, so multiple concurrent stream connections (a refresh, a second
+        # tab, a React re-mount) each receive every event instead of competing for one.
+        self._subscribers: dict[str, list[asyncio.Queue]] = {}
+        # Hold strong references to running pipeline tasks — asyncio keeps only a weak
+        # reference, so an unreferenced task can be garbage-collected and cancelled
+        # mid-run. Discard each task from the set once it finishes.
+        self._tasks: set[asyncio.Task] = set()
 
     # ------------------------------------------------------------------
     # Public API
@@ -92,21 +91,66 @@ class Orchestrator:
             "study_materials": None,
             "error": None,
         }
-        self._queues[session_id] = asyncio.Queue()
-        asyncio.create_task(self._run(session_id, youtube_url, metadata, transcript, transcript_text))
+        task = asyncio.create_task(
+            self._run(session_id, youtube_url, metadata, transcript, transcript_text)
+        )
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
         return session_id
 
     async def stream_events(self, session_id: str) -> AsyncGenerator[dict, None]:
-        queue = self._queues.get(session_id)
-        if queue is None:
+        session = self._sessions.get(session_id)
+        if session is None:
             yield {"type": "error", "error": "Session not found"}
             return
 
-        while True:
-            event = await queue.get()
-            if event is None:  # sentinel — pipeline finished
-                break
-            yield event
+        # Already finished — a reconnect, or a completed session restored from disk
+        # after a restart. Replay the terminal event and return instead of blocking
+        # on a queue that will never receive another event.
+        if session["status"] in ("complete", "error"):
+            yield self._terminal_event(session)
+            return
+
+        # Live session: subscribe with our own queue so we never compete with another
+        # open connection for the same events.
+        queue: asyncio.Queue = asyncio.Queue()
+        self._subscribers.setdefault(session_id, []).append(queue)
+        try:
+            # Guard the race where the pipeline finished between the status check above
+            # and our subscription — replay from state rather than hang forever.
+            session = self._sessions.get(session_id)
+            if session and session["status"] in ("complete", "error"):
+                yield self._terminal_event(session)
+                return
+
+            while True:
+                event = await queue.get()
+                if event is None:  # sentinel — pipeline finished
+                    break
+                yield event
+        finally:
+            subscribers = self._subscribers.get(session_id)
+            if subscribers and queue in subscribers:
+                subscribers.remove(queue)
+            if subscribers is not None and not subscribers:
+                self._subscribers.pop(session_id, None)
+
+    def _terminal_event(self, session: dict) -> dict:
+        """Build the final SSE event from persisted session state (for reconnects)."""
+        if session["status"] == "error":
+            return {"type": "error", "error": session.get("error") or "Processing failed."}
+        return {
+            "type": "complete",
+            "data": {
+                "metadata": session["metadata"],
+                "study_materials": session["study_materials"],
+            },
+        }
+
+    def _publish(self, session_id: str, event: dict | None) -> None:
+        """Fan an event out to every currently-subscribed stream connection."""
+        for queue in list(self._subscribers.get(session_id, [])):
+            queue.put_nowait(event)
 
     async def search(self, session_id: str, query: str) -> list:
         session = self._get_complete_session(session_id)
@@ -139,11 +183,10 @@ class Orchestrator:
         transcript_text: str | None = None,
     ) -> None:
         session = self._sessions[session_id]
-        queue = self._queues[session_id]
 
         try:
             # ── Step 1: Transcript ──────────────────────────────────────
-            await queue.put({"type": "progress", "agent": "transcript", "status": "running"})
+            self._publish(session_id, {"type": "progress", "agent": "transcript", "status": "running"})
             transcript_data = await self.transcript_agent.run(
                 youtube_url,
                 metadata=metadata,
@@ -152,7 +195,7 @@ class Orchestrator:
             )
             session["metadata"] = transcript_data["metadata"]
             session["transcript_text"] = transcript_data["transcript_text"]
-            await queue.put({
+            self._publish(session_id, {
                 "type": "progress",
                 "agent": "transcript",
                 "status": "complete",
@@ -160,12 +203,25 @@ class Orchestrator:
             })
 
             # ── Step 2: Outline + Synthesis in parallel ─────────────────
-            await queue.put({"type": "progress", "agent": "outline", "status": "running"})
-            await queue.put({"type": "progress", "agent": "synthesis", "status": "running"})
+            self._publish(session_id, {"type": "progress", "agent": "outline", "status": "running"})
+            self._publish(session_id, {"type": "progress", "agent": "synthesis", "status": "running"})
 
-            outline, synthesis = await asyncio.gather(
+            outline_result, synthesis_result = await asyncio.gather(
                 self.outline_agent.run(transcript_data["transcript_text"], transcript_data["metadata"]["title"]),
                 self.synthesis_agent.run(transcript_data["transcript_text"], transcript_data["metadata"]["title"]),
+                return_exceptions=True,
+            )
+
+            # If both agents failed, this is a genuine failure — surface it. Otherwise
+            # degrade gracefully so one broken agent doesn't discard the other's work.
+            if isinstance(outline_result, BaseException) and isinstance(synthesis_result, BaseException):
+                raise outline_result
+
+            outline = [] if isinstance(outline_result, BaseException) else outline_result
+            synthesis = (
+                {"summaries": {"brief": "", "medium": "", "full": ""}, "flashcards": [], "key_terms": []}
+                if isinstance(synthesis_result, BaseException)
+                else synthesis_result
             )
 
             study_materials = {
@@ -176,13 +232,15 @@ class Orchestrator:
             }
             session["study_materials"] = study_materials
 
-            await queue.put({"type": "progress", "agent": "outline", "status": "complete"})
-            await queue.put({"type": "progress", "agent": "synthesis", "status": "complete"})
+            self._publish(session_id, {"type": "progress", "agent": "outline", "status": "complete"})
+            self._publish(session_id, {"type": "progress", "agent": "synthesis", "status": "complete"})
 
             # ── Done ────────────────────────────────────────────────────
+            # Set terminal state and persist BEFORE publishing the complete event, so a
+            # stream that connects at this moment sees a terminal status and replays it.
             session["status"] = "complete"
             _save_session(session_id, session)  # persist so restarts don't lose Search/Tutor
-            await queue.put({
+            self._publish(session_id, {
                 "type": "complete",
                 "data": {
                     "metadata": session["metadata"],
@@ -191,13 +249,13 @@ class Orchestrator:
             })
 
         except Exception as exc:
-            msg = _friendly_error(exc)
+            msg = friendly_error(exc)
             session["status"] = "error"
             session["error"] = msg
-            await queue.put({"type": "error", "error": msg})
+            self._publish(session_id, {"type": "error", "error": msg})
 
         finally:
-            await queue.put(None)  # sentinel
+            self._publish(session_id, None)  # sentinel — closes every open stream
 
     def _get_complete_session(self, session_id: str) -> dict:
         session = self._sessions.get(session_id)

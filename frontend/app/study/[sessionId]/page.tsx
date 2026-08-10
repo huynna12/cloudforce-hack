@@ -14,7 +14,8 @@ import {
   Flashcard,
   KeyTerm,
 } from "@/lib/types";
-import { createEventSource, translateContent, startFacultyProcessing } from "@/lib/api";
+import { createEventSource, translateContent, startFacultyProcessing, getSession } from "@/lib/api";
+import { isTransientError } from "@/lib/errors";
 import { VideoPlayerProvider } from "@/contexts/VideoPlayerContext";
 import VideoPlayer from "@/components/VideoPlayer";
 import ProcessingView from "@/components/ProcessingView";
@@ -67,7 +68,13 @@ export default function StudyPage() {
   }>({});
   const [translating, setTranslating] = useState(false);
 
-  // ── SSE connection ──────────────────────────────────────────────────────────
+  // ── Live progress (SSE) + authoritative polling fallback ──────────────────────
+  // The SSE stream gives fine-grained per-agent progress, but it's a long-lived
+  // connection that can drop mid-pipeline (or before it even connects). A dropped
+  // stream is NOT a failure — so instead of surfacing an error and forcing a manual
+  // refresh, we poll GET /api/session/{id}, which is the source of truth for the
+  // terminal state (processing / complete / error). The stream stays best-effort for
+  // live progress; polling guarantees we reach the completed view on our own.
   useEffect(() => {
     if (!sessionId) return;
 
@@ -86,9 +93,36 @@ export default function StudyPage() {
       }
     }
 
+    let done = false; // terminal reached (complete or genuine error) — stop everything
+    let pollTimer: ReturnType<typeof setTimeout> | undefined;
+    const startedAt = Date.now();
+    const MAX_WAIT_MS = 5 * 60 * 1000; // generous — only a real hang trips this
+
+    // Show activity immediately, even if the stream is slow to connect.
+    setProgress({ transcript: "running", outline: "idle", synthesis: "idle" });
+
+    const finishComplete = (data: { metadata: VideoMetadata; study_materials: StudyMaterials }) => {
+      if (done) return;
+      done = true;
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      } catch {}
+      setMetadata(data.metadata);
+      setStudyMaterials(data.study_materials);
+      setIsComplete(true);
+    };
+
+    const failWith = (message: string) => {
+      if (done) return;
+      done = true;
+      setError(message);
+    };
+
+    // ── SSE: live, fine-grained progress (best-effort) ──────────────────────────
     const es = createEventSource(sessionId);
 
     es.onmessage = (e) => {
+      if (done) return;
       const event = JSON.parse(e.data);
 
       if (event.type === "progress") {
@@ -97,25 +131,66 @@ export default function StudyPage() {
           setMetadata(event.data);
         }
       } else if (event.type === "complete") {
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(event.data));
-        } catch {}
-        setMetadata(event.data.metadata);
-        setStudyMaterials(event.data.study_materials);
-        setIsComplete(true);
+        finishComplete(event.data);
         es.close();
       } else if (event.type === "error") {
-        setError(event.error);
+        // The ONLY path to the error UI: a genuine failure reported by the backend.
+        failWith(event.error);
         es.close();
       }
     };
 
+    // A dropped/failed stream just means "keep waiting via polling" — never an error.
+    // Close it so the browser's auto-reconnect doesn't fight the poller (the backend
+    // queue is single-consumer); the poll loop carries us to the terminal state.
     es.onerror = () => {
-      setError((prev) => (isComplete ? prev : "Connection lost. Please try again."));
       es.close();
     };
 
-    return () => es.close();
+    // ── Polling: source of truth for the terminal state, immune to SSE drops ────
+    const poll = async () => {
+      if (done) return;
+      const session = await getSession(sessionId); // {status, metadata, study_materials, error} | null
+
+      if (done) return;
+
+      if (session?.status === "complete" && session.metadata && session.study_materials) {
+        finishComplete({ metadata: session.metadata, study_materials: session.study_materials });
+        es.close();
+        return;
+      }
+      if (session?.status === "error") {
+        failWith(session.error || "Something went wrong while processing this video.");
+        es.close();
+        return;
+      }
+
+      // Still processing (or the session isn't visible yet). Keep the loading view
+      // meaningful even if the stream never delivered any progress events.
+      if (session?.metadata) {
+        setMetadata((prev) => prev ?? session.metadata);
+        setProgress((prev) =>
+          prev.transcript === "complete"
+            ? prev
+            : { transcript: "complete", outline: "running", synthesis: "running" }
+        );
+      }
+
+      if (Date.now() - startedAt > MAX_WAIT_MS) {
+        failWith("This video is taking longer than expected to process. Please try again.");
+        es.close();
+        return;
+      }
+
+      pollTimer = setTimeout(poll, 2500);
+    };
+    pollTimer = setTimeout(poll, 2000); // give the stream a brief head start first
+
+    return () => {
+      done = true;
+      es.close();
+      clearTimeout(pollTimer);
+    };
   }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Translation ─────────────────────────────────────────────────────────────
@@ -174,14 +249,25 @@ export default function StudyPage() {
       <div className="min-h-screen bg-[#FAFAFA] relative">
         <FleeingParticles onIntroDone={() => setIntroComplete(true)} />
 
-        {/* Error — always shown immediately, never gated behind intro */}
+        {/* Error — always shown immediately, never gated behind intro. A transient
+            (rate-limit / "busy") failure gets a softer, retry-oriented treatment
+            since the video itself is fine. */}
         {error && (
           <div className="fixed inset-0 flex items-center justify-center px-4 z-20 animate-fade-in">
             <div className="flex flex-col items-center gap-4 text-center max-w-sm">
-              <div className="w-12 h-12 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-xl">⚠️</div>
-              <p className="font-medium text-[#111827]">Couldn't process this video</p>
+              <div className={clsx(
+                "w-12 h-12 rounded-full border flex items-center justify-center text-xl",
+                isTransientError(error) ? "bg-amber-50 border-amber-100" : "bg-red-50 border-red-100"
+              )}>
+                {isTransientError(error) ? "⏳" : "⚠️"}
+              </div>
+              <p className="font-medium text-[#111827]">
+                {isTransientError(error) ? "We're a bit busy right now" : "Couldn't process this video"}
+              </p>
               <p className="text-sm text-[#6B7280]">{error}</p>
-              <Link href="/" className="text-sm text-[#1a73e8] hover:underline">Try a different video →</Link>
+              <Link href="/" className="text-sm text-[#1a73e8] hover:underline">
+                {isTransientError(error) ? "← Go back and try again" : "Try a different video →"}
+              </Link>
             </div>
           </div>
         )}

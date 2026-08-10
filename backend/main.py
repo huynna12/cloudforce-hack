@@ -1,7 +1,7 @@
 import asyncio
 import json
+import os
 import uuid
-import anthropic as anthropic_lib
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -11,17 +11,8 @@ from pydantic_settings import BaseSettings
 from agents.orchestrator import Orchestrator
 from agents.transcript_agent import TranscriptAgent
 from agents.audit_agent import AuditAgent
+from utils.errors import friendly_error
 from utils.youtube import extract_video_id, get_video_metadata, get_transcript, validate_duration, validate_content
-
-def _friendly_error(exc: Exception) -> str:
-    """Translate raw API / library exceptions into user-readable messages."""
-    if isinstance(exc, anthropic_lib.RateLimitError):
-        return "We're processing too many videos right now — please wait 30 seconds and try again."
-    if isinstance(exc, anthropic_lib.APIConnectionError):
-        return "Couldn't reach the AI service. Check your internet connection and try again."
-    if isinstance(exc, anthropic_lib.APIStatusError):
-        return "The AI service returned an error. Please try again in a moment."
-    return str(exc)  # our own ValueError messages are already user-friendly
 
 
 class Settings(BaseSettings):
@@ -33,9 +24,14 @@ settings = Settings()
 
 app = FastAPI(title="Heidi", version="1.0.0")
 
+# Comma-separated allowed origins, e.g. "https://your-app.vercel.app". Defaults to "*"
+# for local dev; set ALLOWED_ORIGINS in production to lock CORS down to your frontend.
+_allowed = os.environ.get("ALLOWED_ORIGINS", "*").strip()
+_origins = ["*"] if _allowed == "*" else [o.strip() for o in _allowed.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten to your Vercel domain before final deploy
+    allow_origins=_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,6 +44,9 @@ _transcript_agent = TranscriptAgent()
 _audit_agent = AuditAgent(settings.anthropic_api_key)
 _faculty_sessions: dict[str, dict] = {}
 _faculty_queues: dict[str, asyncio.Queue] = {}
+# Strong references to running faculty pipeline tasks (see orchestrator note): asyncio
+# keeps only a weak ref, so an unreferenced task can be GC'd and cancelled mid-run.
+_faculty_tasks: set[asyncio.Task] = set()
 
 async def _run_faculty_pipeline(
     session_id: str,
@@ -84,7 +83,7 @@ async def _run_faculty_pipeline(
             "data": {"metadata": session["metadata"], "report": report},
         })
     except Exception as exc:
-        msg = _friendly_error(exc)
+        msg = friendly_error(exc)
         session["status"] = "error"
         session["error"] = msg
         await queue.put({"type": "error", "error": msg})
@@ -186,7 +185,11 @@ async def faculty_process(request: ProcessRequest):
         "status": "processing", "metadata": None, "report": None, "error": None,
     }
     _faculty_queues[session_id] = asyncio.Queue()
-    asyncio.create_task(_run_faculty_pipeline(session_id, request.youtube_url, metadata, transcript, transcript_text))
+    task = asyncio.create_task(
+        _run_faculty_pipeline(session_id, request.youtube_url, metadata, transcript, transcript_text)
+    )
+    _faculty_tasks.add(task)
+    task.add_done_callback(_faculty_tasks.discard)
     return {"session_id": session_id}
 
 

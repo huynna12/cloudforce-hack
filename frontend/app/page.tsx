@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, BookOpen, Layers, Search, Globe, Youtube, Sparkles } from "lucide-react";
 import { startProcessing } from "@/lib/api";
+import { isTransientError } from "@/lib/errors";
 
 const FEATURES = [
   {
@@ -53,29 +54,61 @@ function validateYouTubeUrl(url: string): string | null {
   return "That doesn't look like a YouTube URL. Please paste a link from youtube.com or youtu.be.";
 }
 
+const MAX_AUTO_RETRIES = 1;  // one hands-free retry on a transient failure
+const RETRY_DELAY = 8;       // seconds to wait before the auto-retry (lets YouTube cool off)
+
 export default function HomePage() {
   const router = useRouter();
   const [url, setUrl]       = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError]   = useState<string | null>(null);
+  const [retryIn, setRetryIn] = useState<number | null>(null); // countdown to auto-retry
+  const autoRetries = useRef(0);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!url.trim() || loading) return;
-
-    const validationError = validateYouTubeUrl(url);
+  const runProcess = useCallback(async (rawUrl: string) => {
+    const trimmed = rawUrl.trim();
+    const validationError = validateYouTubeUrl(trimmed);
     if (validationError) { setError(validationError); return; }
 
     setLoading(true);
     setError(null);
+    setRetryIn(null);
     try {
-      const { session_id } = await startProcessing(url.trim());
+      const { session_id } = await startProcessing(trimmed);
       router.push(`/study/${session_id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      const message = err instanceof Error ? err.message : "Something went wrong.";
       setLoading(false);
+      setError(message);
+      // Transient (rate-limit / "busy") failures retry themselves once, after a short
+      // cooldown, so the user doesn't have to babysit it. Permanent errors do not.
+      if (isTransientError(message) && autoRetries.current < MAX_AUTO_RETRIES) {
+        autoRetries.current += 1;
+        setRetryIn(RETRY_DELAY);
+      }
     }
+  }, [router]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!url.trim() || loading) return;
+    autoRetries.current = 0;  // fresh manual attempt — reset the auto-retry budget
+    runProcess(url);
   };
+
+  const cancelRetry = () => setRetryIn(null);
+
+  // Drive the auto-retry countdown; fire runProcess when it hits 0.
+  useEffect(() => {
+    if (retryIn === null) return;
+    if (retryIn <= 0) {
+      setRetryIn(null);
+      runProcess(url);
+      return;
+    }
+    const t = setTimeout(() => setRetryIn((s) => (s === null ? null : s - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [retryIn, url, runProcess]);
 
   return (
     <main className="min-h-screen flex flex-col relative overflow-hidden bg-[#FAFAFA]">
@@ -178,7 +211,7 @@ export default function HomePage() {
             <Youtube className="w-5 h-5 text-[#FF0000] flex-shrink-0 ml-1" />
             <input
               value={url}
-              onChange={(e) => { setUrl(e.target.value); setError(null); }}
+              onChange={(e) => { setUrl(e.target.value); setError(null); setRetryIn(null); autoRetries.current = 0; }}
               placeholder="Paste a YouTube lecture URL…"
               className="flex-1 py-2 px-2 text-sm bg-transparent focus:outline-none
                          text-[#111827] placeholder:text-[#9CA3AF] min-w-0"
@@ -208,7 +241,30 @@ export default function HomePage() {
           </div>
 
           {error && (
-            <p className="text-xs text-red-500 pl-2 animate-fade-in">{error}</p>
+            isTransientError(error) ? (
+              <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-xl animate-fade-in">
+                <span className="text-sm leading-none mt-0.5">⏳</span>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  {error}{" "}
+                  {retryIn !== null ? (
+                    <>
+                      <span className="text-amber-600">Retrying automatically in {retryIn}s…</span>{" "}
+                      <button
+                        type="button"
+                        onClick={cancelRetry}
+                        className="underline hover:no-underline text-amber-700 font-medium"
+                      >
+                        cancel
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-amber-600">Your link is fine — just press Analyze again in a moment.</span>
+                  )}
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs text-red-500 pl-2 animate-fade-in">{error}</p>
+            )
           )}
 
         </form>

@@ -1,4 +1,5 @@
 import asyncio
+import re
 import anthropic
 from utils.json_utils import parse_llm_json
 
@@ -37,10 +38,7 @@ BRIEF_PROMPT = f"""Write a very short summary of this lecture that a student can
 
 2-3 punchy sentences or a tight bulleted list. The absolute core idea only — what is this lecture about and why does it matter. No headings needed.
 
-Return JSON in exactly this format:
-{{
-  "summary": "markdown string here"
-}}"""
+Return ONLY the markdown summary itself — no JSON, no code fences, no wrapping object. Start directly with the summary content."""
 
 MEDIUM_PROMPT = f"""Write a 5-minute summary (~600 words) of this lecture. Use rich markdown formatting.
 
@@ -48,10 +46,7 @@ MEDIUM_PROMPT = f"""Write a 5-minute summary (~600 words) of this lecture. Use r
 
 Use ## section headings to organize the content. Bold key terms. Mix short paragraphs with bullet lists where appropriate.
 
-Return JSON in exactly this format:
-{{
-  "summary": "markdown string here"
-}}"""
+Return ONLY the markdown summary itself — no JSON, no code fences, no wrapping object. Start directly with the summary content."""
 
 FULL_PROMPT = f"""Write a comprehensive, detailed summary (~1200 words) of this lecture. Use rich markdown formatting.
 
@@ -59,10 +54,7 @@ FULL_PROMPT = f"""Write a comprehensive, detailed summary (~1200 words) of this 
 
 Full ## section breakdown covering every major concept, with bold terms, bullet lists, examples, and clear hierarchy. Suitable for deep review before an exam — leave nothing important out.
 
-Return JSON in exactly this format:
-{{
-  "summary": "markdown string here"
-}}"""
+Return ONLY the markdown summary itself — no JSON, no code fences, no wrapping object. Start directly with the summary content."""
 
 FLASHCARDS_PROMPT = """Create 12 to 20 high-quality flashcards from this lecture.
 
@@ -123,6 +115,15 @@ Return JSON in exactly this format:
 Aim for 8 to 20 terms depending on the lecture's density."""
 
 
+def _strip_code_fence(text: str) -> str:
+    """Drop an accidental ```...``` wrapper the model may add around the markdown."""
+    t = text.strip()
+    if t.startswith("```"):
+        t = re.sub(r"^```[a-zA-Z]*\s*\n?", "", t)
+        t = re.sub(r"\n?```$", "", t)
+    return t.strip()
+
+
 class SynthesisAgent:
     """Generates summaries, flashcards, and key terms using Claude Sonnet with prompt caching."""
 
@@ -140,18 +141,34 @@ class SynthesisAgent:
                 + "\n\n[Transcript truncated for length — covers approximately the first 2 hours of the lecture]"
             )
 
-        # Run all 5 calls in parallel — brief/medium/full are now separate so none can truncate the others
+        # Run all 5 calls in parallel. return_exceptions=True keeps one failed sub-call
+        # (a rate-limited request, a malformed flashcard payload) from throwing away the
+        # other four — the student still gets a usable page. Only a total wipeout raises.
         brief, medium, full, flashcards, key_terms = await asyncio.gather(
             self._generate_one_summary(transcript_text, video_title, BRIEF_PROMPT, 1500),
             self._generate_one_summary(transcript_text, video_title, MEDIUM_PROMPT, 3000),
             self._generate_one_summary(transcript_text, video_title, FULL_PROMPT, 5000),
             self._generate_flashcards(transcript_text, video_title),
             self._generate_key_terms(transcript_text, video_title),
+            return_exceptions=True,
         )
+
+        results = [brief, medium, full, flashcards, key_terms]
+        if all(isinstance(r, BaseException) for r in results):
+            # Everything failed — surface a real error rather than caching an empty page.
+            raise next(r for r in results if isinstance(r, BaseException))
+
+        def _ok(value, default):
+            return default if isinstance(value, BaseException) else value
+
         return {
-            "summaries": {"brief": brief, "medium": medium, "full": full},
-            "flashcards": flashcards,
-            "key_terms": key_terms,
+            "summaries": {
+                "brief":  _ok(brief, ""),
+                "medium": _ok(medium, ""),
+                "full":   _ok(full, ""),
+            },
+            "flashcards": _ok(flashcards, []),
+            "key_terms":  _ok(key_terms, []),
         }
 
     def _build_messages(self, transcript_text: str, video_title: str, task_prompt: str) -> list:
@@ -181,8 +198,10 @@ class SynthesisAgent:
             system=self._build_system(),
             messages=self._build_messages(transcript_text, video_title, prompt),
         )
-        data = parse_llm_json(response.content[0].text)
-        return data.get("summary", "")
+        # Summaries come back as raw markdown, not JSON — wrapping a long multi-line
+        # markdown string in a JSON value is fragile (literal newlines, stray backticks,
+        # or truncation all break json.loads). Use the text directly.
+        return _strip_code_fence(response.content[0].text)
 
     async def _generate_flashcards(self, transcript_text: str, video_title: str) -> list:
         response = await self.client.messages.create(

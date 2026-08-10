@@ -1,4 +1,5 @@
 import re
+import time
 import asyncio
 import httpx
 from youtube_transcript_api import YouTubeTranscriptApi
@@ -7,6 +8,28 @@ import os
 
 # Minimum lecture length — anything shorter isn't worth processing
 MIN_DURATION_SECONDS = 120  # 2 minutes
+
+# Transcript fetch retry policy — YouTube rate-limits aggressively, especially from
+# datacenter IPs, and the same video usually succeeds on a second try.
+_MAX_TRANSCRIPT_ATTEMPTS = 3
+
+# Error-string markers that mean "transient, worth retrying" rather than a genuine
+# "this video has no captions" (which won't improve on retry).
+_TRANSIENT_MARKERS = (
+    "too many requests", "429", "rate limit", "rate-limit",
+    "timeout", "timed out", "temporarily", "connection",
+    "ip block", "ipblocked", "try again",
+)
+
+_RATE_LIMIT_MSG = (
+    "YouTube is temporarily limiting requests. "
+    "Please wait about 30 seconds and try the same video again."
+)
+
+
+def _is_transient(err: str) -> bool:
+    e = err.lower()
+    return any(m in e for m in _TRANSIENT_MARKERS)
 
 # Title substrings that reliably indicate a music video (case-insensitive)
 _MUSIC_TITLE_MARKERS = {
@@ -81,10 +104,25 @@ async def get_video_metadata(video_id: str) -> dict:
         f"?url=https://www.youtube.com/watch?v={video_id}&format=json"
     )
     async with httpx.AsyncClient(timeout=10.0) as client:
-        oembed_resp, category = await asyncio.gather(
-            client.get(oembed_url),
-            _get_video_category(video_id, client),
-        )
+        # The oembed endpoint gets rate-limited too — retry transient failures (network
+        # errors, 429, 5xx) with a short backoff, mirroring the transcript fetch.
+        oembed_resp = None
+        category = None
+        for attempt in range(_MAX_TRANSCRIPT_ATTEMPTS):
+            try:
+                oembed_resp, category = await asyncio.gather(
+                    client.get(oembed_url),
+                    _get_video_category(video_id, client),
+                )
+            except httpx.HTTPError:
+                if attempt < _MAX_TRANSCRIPT_ATTEMPTS - 1:
+                    await asyncio.sleep(1.0 * (attempt + 1))
+                    continue
+                raise ValueError(_RATE_LIMIT_MSG)
+            if oembed_resp.status_code in (429, 500, 502, 503, 504) and attempt < _MAX_TRANSCRIPT_ATTEMPTS - 1:
+                await asyncio.sleep(1.0 * (attempt + 1))
+                continue
+            break
 
     if oembed_resp.status_code == 401:
         raise ValueError("This video is age-restricted or private. Please use a publicly accessible lecture video.")
@@ -92,6 +130,8 @@ async def get_video_metadata(video_id: str) -> dict:
         raise ValueError("This video is private. Please use a publicly accessible lecture video.")
     if oembed_resp.status_code == 404:
         raise ValueError("Video not found. Please check the URL and make sure the video is public.")
+    if oembed_resp.status_code == 429 or oembed_resp.status_code >= 500:
+        raise ValueError(_RATE_LIMIT_MSG)
     if oembed_resp.status_code != 200:
         raise ValueError(f"Couldn't access this video (status {oembed_resp.status_code}). Make sure it's a public YouTube video.")
 
@@ -132,50 +172,57 @@ async def get_transcript(video_id: str) -> list[dict]:
     loop = asyncio.get_event_loop()
 
     def _fetch():
-        api = YouTubeTranscriptApi(
-            proxy_config=WebshareProxyConfig(
-                proxy_username=os.environ["WEBSHARE_PROXY_USERNAME"],
-                proxy_password=os.environ["WEBSHARE_PROXY_PASSWORD"],
+        # Use the Webshare proxy when credentials are configured; fall back to a direct
+        # connection otherwise (e.g. local dev). Reading via os.environ.get avoids a
+        # KeyError — which isn't a ValueError, so it would otherwise escape the
+        # /api/process handler as an opaque 500 instead of a friendly message.
+        proxy_username = os.environ.get("WEBSHARE_PROXY_USERNAME")
+        proxy_password = os.environ.get("WEBSHARE_PROXY_PASSWORD")
+        if proxy_username and proxy_password:
+            api = YouTubeTranscriptApi(
+                proxy_config=WebshareProxyConfig(
+                    proxy_username=proxy_username,
+                    proxy_password=proxy_password,
+                )
             )
-        )
+        else:
+            api = YouTubeTranscriptApi()
 
-        # Step 1 — discover what captions actually exist
-        try:
-            transcript_list = list(api.list(video_id))
-        except Exception as e:
-            err = str(e).lower()
-            if "live" in err or "streaming" in err:
-                raise ValueError("This video is a live stream and doesn't have a transcript yet. Try again after it's been processed by YouTube.")
-            if "too many requests" in err or "429" in err:
-                raise ValueError("YouTube is rate-limiting requests right now. Please wait a moment and try again.")
-            raise ValueError("No captions found for this video. Please use a lecture with captions enabled.")
-
-        if not transcript_list:
-            raise ValueError("No captions found for this video. Please use a lecture with captions enabled.")
-
-        # Step 2 — pick the best available transcript
         # Priority: manual English > auto English > manual any language > auto any language
         def preference(t) -> tuple:
             is_english = t.language_code.lower().startswith("en")
             is_manual  = not t.is_generated
             return (0 if is_english else 1, 0 if is_manual else 1)
 
-        transcript_list.sort(key=preference)
-        best = transcript_list[0]
+        # Retry transient failures (rate limits, IP blocks, network blips) with a short
+        # backoff before giving up — a single blip shouldn't send the user away. Genuine
+        # problems (no captions, disabled, livestream) raise immediately without retrying.
+        for attempt in range(_MAX_TRANSCRIPT_ATTEMPTS):
+            try:
+                transcript_list = list(api.list(video_id))
+                if not transcript_list:
+                    raise ValueError("This video doesn't have captions. Please try a lecture that has captions enabled.")
+                transcript_list.sort(key=preference)
+                snippets = transcript_list[0].fetch()
+                return [
+                    {"text": s.text, "start": s.start, "duration": s.duration}
+                    for s in snippets
+                ]
+            except ValueError:
+                raise  # our own genuine, user-friendly messages — never retry these
+            except Exception as e:
+                err = str(e).lower()
+                if "live" in err or "streaming" in err:
+                    raise ValueError("This looks like a live stream, which doesn't have a transcript yet. Try a recorded lecture.")
+                if _is_transient(err):
+                    if attempt < _MAX_TRANSCRIPT_ATTEMPTS - 1:
+                        time.sleep(1.0 * (attempt + 1))  # brief backoff: 1s, then 2s
+                        continue
+                    raise ValueError(_RATE_LIMIT_MSG)
+                # Unknown, non-transient failure — most often genuinely no captions.
+                raise ValueError("This video doesn't have captions. Please try a lecture that has captions enabled.")
 
-        # Step 3 — fetch it
-        try:
-            snippets = best.fetch()
-        except Exception as e:
-            err = str(e).lower()
-            if "too many requests" in err or "429" in err:
-                raise ValueError("YouTube is rate-limiting requests right now. Please wait a moment and try again.")
-            raise ValueError("Couldn't fetch captions for this video. Please make sure the video is public and has captions enabled.")
-
-        return [
-            {"text": s.text, "start": s.start, "duration": s.duration}
-            for s in snippets
-        ]
+        raise ValueError(_RATE_LIMIT_MSG)  # retries exhausted on transient errors
 
     return await loop.run_in_executor(None, _fetch)
 
